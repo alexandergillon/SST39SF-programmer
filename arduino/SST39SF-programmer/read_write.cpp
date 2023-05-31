@@ -93,7 +93,7 @@ void setDataPinsOut() {
 }
 
 //=============================================================================
-//             BUS FUNCTIONS
+//             BUS FUNCTIONS + READING/WRITING DATA
 //=============================================================================
 
 void setAddressBus(uint32_t address) {
@@ -175,6 +175,48 @@ void writeByte(uint32_t address, byte data) {
     sendByte(address, data);
 
     delayMicroseconds(25);  // wait for chip to write
+}
+
+//=============================================================================
+//             ERASING DATA
+//=============================================================================
+
+void eraseSectorStartingAt(uint32_t address) {
+#ifdef DEBUG
+    checkDataPinsOut("eraseSectorStartingAt");
+
+    if (address >= SST_FLASH_SIZE) {
+        fail("DEBUG assertion failed during eraseSectorStartingAt: address is out of bounds (too large).");
+    }
+
+    uint32_t sectorNumber = address / SST_SECTOR_SIZE;
+    uint32_t startingAddressOfSector = sectorNumber * SST_SECTOR_SIZE;
+    if (address != startingAddressOfSector) {
+        fail("DEBUG assertion failed during eraseSectorStartingAt: address is not the starting address of a sector.");
+    }
+#endif
+
+    sendByte(0x5555, 0xAA);
+    sendByte(0x2AAA, 0x55);
+    sendByte(0x5555, 0x80);
+    sendByte(0x5555, 0xAA);
+    sendByte(0x2AAA, 0x55);
+    sendByte(address, 0x30);
+
+    delay(30);  // wait for sector to erase
+}
+
+void eraseSector(uint16_t sectorIndex) {
+#ifdef DEBUG
+    checkDataPinsOut("eraseSector");
+
+    if (sectorIndex >= SST_NUMBER_SECTORS) {
+        fail("DEBUG assertion failed during eraseSector: index is out of bounds (too large).");
+    }
+#endif
+
+    uint32_t sectorIndex32 = sectorIndex;  // needed, or else the multiplication below will get truncated for larger sector indices
+    eraseSectorStartingAt(sectorIndex32 * SST_SECTOR_SIZE);
 }
 
 void eraseChip() {

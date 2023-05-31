@@ -14,7 +14,7 @@ void setDataPinsIn();
 void setDataPinsOut();
 
 //=============================================================================
-//             BUS FUNCTIONS
+//             BUS FUNCTIONS + READING/WRITING DATA
 //=============================================================================
 
 /**
@@ -80,6 +80,50 @@ void sendByte(uint32_t address, byte data);
  * @param data the data to write
  */
 void writeByte(uint32_t address, byte data);
+
+//=============================================================================
+//             ERASING DATA
+//=============================================================================
+
+/**
+ * @brief Erases a sector starting at a certain memory address. Requires the data pins to be set to output.
+ * 
+ * NOTE: addresses that do not correspond to the start of a sector will not fail, and will likely have
+ * unintended results. The SST39SF uses the most significant bits of the address bus to select which 
+ * sector to erase: passing in an address that is not the start of a sector will likely cause the sector
+ * in which that address is contained to be erased, as the lower bits would be ignored 
+ * (however no guarantees are made). 
+ * 
+ * NOTE: addresses are not bounds checked. Using values larger than the addressable memory on the chip
+ * will have unintended results, likely erasing the sector that is the same moduluo the size of the
+ * address space (however no guarantees are made). 
+ * 
+ * If compiled with the DEBUG flag:
+ *   - Input validation of the address will occur, and the operation will instead fail if the address 
+ *     could not be the start of a sector or if the starting address is out of range.
+ *   - Fails if the data pins are not set to output.
+ * 
+ * @param address the starting address of a sector
+ */
+void eraseSectorStartingAt(uint32_t address);
+
+/**
+ * @brief Erases the nth sector of the SST39SF (zero-indexed). Requires the data pins to be set to output.
+ * 
+ * I.e. eraseSector(0) erases the first sector, eraseSector(1) erases the second, etc.
+ * 
+ * NOTE: the sector index is not bounds checked. Using values larger than the number of sectors will
+ * have unintended results, likely erasing the sector that is the same moduluo the number of sectors
+ * (however no guarantees are made). 
+ * 
+ * If compiled with the DEBUG flag:
+ *   - The sector index is instead bounds checked, and the operation will fail if the sector index is out
+ *     of bounds.
+ *   - Fails if the data pins are not set to output.
+ * 
+ * @param sectorIndex the index of the sector to erase (zero-indexed)
+ */
+void eraseSector(uint16_t sectorIndex);
 
 /**
  * @brief Erases the SST39SF chip. Requires the data pins to be set to output.
