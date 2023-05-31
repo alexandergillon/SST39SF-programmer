@@ -1,17 +1,3 @@
-#define DEBUG
-
-#define SERIAL_BAUD_RATE 9600
-
-//=============================================================================
-//  Pinout: change these if you are wiring the Arduino differently
-//=============================================================================
-
-#define WRITE_ENABLE 2           // Write enable pin, active low
-#define OUTPUT_ENABLE 3          // Output enable pin, active low
-#define ADDR0 22                 // Starting pin of the address bus: pins count up from here
-#define DQ0 44                   // Starting pin of the data bus: pins count up from here
-
-
 //=============================================================================
 //  Chip constants: change these if you are using a different size chip
 //=============================================================================

@@ -1,4 +1,5 @@
 #include "fail.h"
+#include "debug.h"
 
 #include <Arduino.h>
 

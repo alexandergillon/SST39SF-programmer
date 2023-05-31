@@ -2,8 +2,10 @@
  * This file contains functions for reading from and writing to the SST39SF chip.
  */
 #include "read_write.h"
-#include "constants.h"
+#include "sst_constants.h"
 #include "fail.h"
+#include "debug.h"
+#include "pinout.h"
 
 #include <Arduino.h>
 
