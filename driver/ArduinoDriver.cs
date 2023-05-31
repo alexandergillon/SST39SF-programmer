@@ -1,8 +1,9 @@
 using System;
 using System.IO;
 using System.IO.Ports;
+using System.Threading;
 
-// (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@((($pwd).path + "\ArduinoDriver.cs"), "COM3"))
+// (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3"))
 
 class ArduinoDriver {
     private const int BAUD_RATE = 9600;
@@ -11,6 +12,8 @@ class ArduinoDriver {
     private const int DATA_BITS = 8;
     private const Parity PARITY = Parity.None;
     private const StopBits STOP_BITS = StopBits.One;
+    
+    private static byte[] ACK = new byte[] { 0x06 };
 
     /// <summary>
     /// Connects to the Arduino, running on a specified serial port.
@@ -37,13 +40,18 @@ class ArduinoDriver {
     }
 
     public static int Main(string[] args) {
-        if (args.Length <= 1) {
+        if (args.Length <= 0) {
             Console.WriteLine("No serial port argument supplied.");
             Environment.Exit(1);
         }
         
-        string serialPortName = args[1];
+        string serialPortName = args[0];
         SerialPort serialPort = ConnectToArduino(serialPortName);
+        
+        // For some reason, characters are dropped during the first few reads. So we let the serial port 'warm up'
+        // here and discard the first few characters.
+        System.Threading.Thread.Sleep(1000);  
+        serialPort.DiscardInBuffer();
 
         string waitingMessage = string.Empty;
         bool messageStarted = false;
@@ -51,11 +59,9 @@ class ArduinoDriver {
             byte b = (byte)serialPort.ReadByte();
 
             if (!messageStarted) {
-                if (b != 'W') {
-                    messageStarted = true;
-                    continue;
-                }
+                if (b != 'W') continue;
                 waitingMessage += (char)b;
+                messageStarted = true;
             } else {
                 waitingMessage += (char)b;
             }
@@ -63,8 +69,12 @@ class ArduinoDriver {
             Console.Write((char)b);
 
             if (waitingMessage.Length >= 7) {
-                byte[] ack = new byte[] { 0x06 };
-                serialPort.Write(ack, 0, 1);
+                if (waitingMessage.Equals("WAITING")) {
+                    serialPort.Write(ACK, 0, 1);
+                } else {
+                    Console.Write("bad waiting");
+                }
+                
                 Environment.Exit(1);
             }
         }
