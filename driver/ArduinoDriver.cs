@@ -1,24 +1,13 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Ports;
-using System.Threading;
-using System.Text;
 using System.Collections.Generic;
 
 // C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe ArduinoDriver.cs
 // Powershell command for compiling and running: (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3"))
 
 class ArduinoDriver {
-    private const int BAUD_RATE = 9600;
-    
-    // default arduino serial communication is 8N1
-    private const int DATA_BITS = 8;
-    private const Parity PARITY = Parity.None;
-    private const StopBits STOP_BITS = StopBits.One;
-
     private const string ARDUINO_WAIT_MESSAGE = "WAITING";
-    
-    private static byte[] ACK = new byte[] { 0x06 };
 
     /// <summary>
     /// Opens a serial port with a specified name. On failure (port does not exist, is already in use, etc.),
@@ -26,12 +15,11 @@ class ArduinoDriver {
     /// </summary>
     /// <param name="serialPortName">The name of the serial port to connect to.</param>
     /// <returns>A connection to the serial port.</returns>
-    private static SerialPort OpenSerialPort(string serialPortName) {
+    private static Arduino OpenSerialPort(string serialPortName) {
         try {
-            SerialPort serialPort = new SerialPort(serialPortName, BAUD_RATE, PARITY, DATA_BITS, STOP_BITS);
-            serialPort.Open();
+            Arduino arduino = new Arduino(serialPortName);
             Console.WriteLine("Serial port " + serialPortName + " opened.");
-            return serialPort;
+            return arduino;
         } catch (IOException e) {
             Console.WriteLine("Supplied serial port could not be found: ");
             Console.WriteLine(e.ToString());
@@ -44,6 +32,38 @@ class ArduinoDriver {
             return null;  // for the compiler
         }
     }
+    
+    /// <summary>
+    /// Processes the message that the Arduino sent us during communication initialization. If the Arduino sent us
+    /// the correct message, responds with an ACK and returns. Else, prints an error message and exits.
+    /// </summary>
+    /// <param name="arduino">A serial port connected to the Arduino</param>
+    /// <param name="receivedBeforeMessageStart">Bytes received from the Arduino before the start of the message
+    /// (i.e. any bytes before the beginning 'W' of the message).</param>
+    /// <param name="waitingMessageBytes">Bytes received in the message (i.e. 'W' and onwards).</param>
+    /// <returns></returns>
+    private static void ProcessArduinoMessage(Arduino arduino, List<byte> receivedBeforeMessageStart, List<byte> waitingMessageBytes) {
+        string waitingMessage = System.Text.Encoding.ASCII.GetString(waitingMessageBytes.ToArray());
+        if (waitingMessage.Equals(ARDUINO_WAIT_MESSAGE)) {
+            arduino.ACK();
+            Console.WriteLine("Received communication initialization message from Arduino: acknowledged.");
+        } else {
+            // Didn't get the correct message from the Arduino: print what we did get and exit.
+            receivedBeforeMessageStart.AddRange(waitingMessageBytes);
+            byte[] badBytes = receivedBeforeMessageStart.ToArray();
+            string badBytesAsString = System.Text.Encoding.ASCII.GetString(badBytes);
+
+            Console.Write("Did not receive expected message " + ARDUINO_WAIT_MESSAGE + ", received "
+                          + badBytesAsString + " instead. As hex representation, this is:"
+                          + Environment.NewLine);
+            for (int i = 0; i < badBytes.Length; i++) {
+                Console.Write("0x" + BitConverter.ToString(badBytes, i, 1) + " ");
+            }
+
+            Console.Write(Environment.NewLine);
+            Environment.Exit(1);
+        }
+    }
 
     /// <summary>
     /// Connects to the Arduino and performs the initial handshake. On failure (port does not exist,
@@ -52,25 +72,25 @@ class ArduinoDriver {
     /// </summary>
     /// <param name="serialPortName">The name of the serial port to connect to.</param>
     /// <returns>A serial port, connected to the Arduino, with the Arduino in its main loop.</returns>
-    private static SerialPort ConnectToArduino(string serialPortName) {
-        SerialPort serialPort = OpenSerialPort(serialPortName);
-        serialPort.ReadTimeout = 2000;  // we want a 2s timeout here as the Arduino transmits every second, but we
-                                        // set this back to infinite before returning it to the caller
-        
+    private static Arduino ConnectToArduino(string serialPortName) {
+        Arduino arduino = OpenSerialPort(serialPortName);
+        arduino.ReadTimeout = 2000;  // we want a 2s timeout here as the Arduino transmits every second, but we
+                                     // set this back to infinite before returning it to the caller
+
         /* For some reason, characters are dropped during the first few reads. I have observed reads such as WAITWAITING
          * or WATIGWAITING, etc. Giving the serial port some time to 'warm up' and dropping the first few characters
          * seems to fix the issue. */
-        System.Threading.Thread.Sleep(1000);  
-        serialPort.DiscardInBuffer();
+        System.Threading.Thread.Sleep(1000);
+        arduino.DiscardInBuffer();
 
         bool messageStarted = false;
-        List<Byte> receivedBeforeMessageStart = new List<Byte>(ARDUINO_WAIT_MESSAGE.Length);
-        List<Byte> waitingMessageBytes = new List<Byte>(ARDUINO_WAIT_MESSAGE.Length);
+        List<byte> bytesBeforeMessageStart = new List<byte>(ARDUINO_WAIT_MESSAGE.Length);
+        List<byte> messageBytes = new List<byte>(ARDUINO_WAIT_MESSAGE.Length);
 
         while (true) {
             byte inputByte;
             try {
-                inputByte = (byte)serialPort.ReadByte();
+                inputByte = (byte)arduino.ReadByte();
             } catch (TimeoutException) {
                 Console.WriteLine("Timed out (>2 seconds) while waiting for data from Arduino during communication" +
                                   "initialization.");
@@ -82,39 +102,21 @@ class ArduinoDriver {
                 if (inputByte != 'W') {
                     /* Skip bytes until we see the W of WAITING. However, we still record what we received,
                      * for debugging purposes. */
-                    receivedBeforeMessageStart.Add(inputByte);
+                    bytesBeforeMessageStart.Add(inputByte);
                 } else {
-                    waitingMessageBytes.Add(inputByte);
+                    messageBytes.Add(inputByte);
                     messageStarted = true;
                 }
             } else {
-                waitingMessageBytes.Add(inputByte);
+                messageBytes.Add(inputByte);
             }
 
-            if (waitingMessageBytes.Count >= ARDUINO_WAIT_MESSAGE.Length
-                || receivedBeforeMessageStart.Count >= ARDUINO_WAIT_MESSAGE.Length) {
-                string waitingMessage = System.Text.Encoding.ASCII.GetString(waitingMessageBytes.ToArray());
-                if (waitingMessage.Equals(ARDUINO_WAIT_MESSAGE)) {
-                    serialPort.Write(ACK, 0, ACK.Length);
-                    serialPort.ReadTimeout = SerialPort.InfiniteTimeout;
-                    Console.WriteLine("Received communication initialization message from Arduino.");
-                    return serialPort;
-                } else {
-                    // Didn't get the correct message from the Arduino: print what we did get and exit.
-                    receivedBeforeMessageStart.AddRange(waitingMessageBytes);
-                    Byte[] badBytes = receivedBeforeMessageStart.ToArray();
-                    string badBytesAsString = System.Text.Encoding.ASCII.GetString(badBytes);
-
-                    Console.Write("Did not receive expected message " + ARDUINO_WAIT_MESSAGE + ", received "
-                                  + badBytesAsString + " instead. As hex representation, this is:"
-                                  + System.Environment.NewLine);
-                    for (int i = 0; i < badBytes.Length; i++) {
-                        Console.Write("0x" + BitConverter.ToString(badBytes, i, 1) + " ");
-                    }
-                    Console.Write(System.Environment.NewLine);
-                    Environment.Exit(1);
-                    return null; // for the compiler
-                }
+            if (messageBytes.Count >= ARDUINO_WAIT_MESSAGE.Length
+                    || bytesBeforeMessageStart.Count >= ARDUINO_WAIT_MESSAGE.Length
+                    || inputByte == '\0') {
+                ProcessArduinoMessage(arduino, bytesBeforeMessageStart, messageBytes);
+                arduino.ReadTimeout = SerialPort.InfiniteTimeout;
+                return arduino;
             }
         }
     }
@@ -124,9 +126,9 @@ class ArduinoDriver {
             Console.WriteLine("No serial port argument supplied.");
             Environment.Exit(1);
         }
-        
+
         string serialPortName = args[0];
-        SerialPort serialPort = ConnectToArduino(serialPortName);
+        Arduino arduino = ConnectToArduino(serialPortName);
 
         return 0;
     }
