@@ -1,3 +1,6 @@
+#ifndef SST39SF_PROGRAMMER_SST_CONSTANTS_H
+#define SST39SF_PROGRAMMER_SST_CONSTANTS_H
+
 //=============================================================================
 //  Chip constants: change these if you are using a different size chip
 //=============================================================================
@@ -15,3 +18,5 @@
 #define SST_FLASH_SIZE 262144    // Number of bytes of flash on the chip: depends on chip size
 #define SST_SECTOR_SIZE 4096     // Number of bytes in a sector: always 4096 bytes
 #define SST_NUMBER_SECTORS (SST_FLASH_SIZE / SST_SECTOR_SIZE)  
+
+#endif  // SST39SF_PROGRAMMER_SST_CONSTANTS_H

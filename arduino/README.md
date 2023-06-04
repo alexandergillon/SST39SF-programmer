@@ -1,1 +1,0 @@
-Directories are structured in this way as Arduino requires the Arduino sketch to have the same name as the directory it is in.

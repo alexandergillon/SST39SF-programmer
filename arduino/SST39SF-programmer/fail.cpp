@@ -1,11 +1,15 @@
 #include "fail.h"
-#include "debug.h"
+#include "globals.h"
+#include "pinout.h"
+#include "communication_util.h"
 
 #include <Arduino.h>
 
+// See header comment.
 void fail(String errorMessage) {
+    setLEDStatus(ERROR);
     while (true) {
-        Serial.println(errorMessage);
+        sendNAKMessage(errorMessage);
         delay(5000);
     }
 }

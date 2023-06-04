@@ -2,4 +2,6 @@
 *.idea/
 
 /driver/*
-!/driver/ArduinoDriver.cs
+!/driver/*.cs
+
+*.dia~

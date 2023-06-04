@@ -1,3 +1,6 @@
+#ifndef SST39SF_PROGRAMMER_PINOUT_H
+#define SST39SF_PROGRAMMER_PINOUT_H
+
 //=============================================================================
 //  Pins that talk to the SST39SF
 //=============================================================================
@@ -14,3 +17,5 @@
 #define WORKING_LED A14                    // suggested color: blue
 #define FINISHED_LED A13                   // suggested color: green
 #define ERROR_LED A12                      // suggested color: red
+
+#endif  // SST39SF_PROGRAMMER_PINOUT_H

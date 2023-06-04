@@ -1,7 +1,10 @@
+#ifndef SST39SF_PROGRAMMER_READ_WRITE_H
+#define SST39SF_PROGRAMMER_READ_WRITE_H
+
 #include <Arduino.h>
 
 //=============================================================================
-//             PIN CONFIGURATION FUNCTIONS
+//             PIN CONFIGURATION
 //=============================================================================
 
 /** @brief Sets the control pins (WRITE_ENABLE) and (OUTPUT_ENABLE) to disabled. */
@@ -14,36 +17,8 @@ void setDataPinsIn();
 void setDataPinsOut();
 
 //=============================================================================
-//             BUS FUNCTIONS + READING/WRITING DATA
+//             READING/WRITING DATA
 //=============================================================================
-
-/**
- * @brief Set the address bus to a specific address. Requires the address pins to be set to input.
- * 
- * Note: the length of an address depends on which variant of the chip is being used, and
- * is defined as ADDRESS_BUS_LENGTH in constants.h.
- * 
- * @param address the address to put on the address bus
- */
-void setAddressBus(uint32_t address);
-
-/**
- * @brief Sets the data bus pins to a specific byte. Requires the data pins to be set to output.
- * 
- * Fails if compiled with DEBUG defined and the data pins are not set to output.
- * 
- * @param data the data to put on the data bus
- */
-void setDataBus(byte data);
-
-/**
- * @brief Reads what is currently on the data bus. Requires the data pins to be set to input.
- * 
- * Fails if compiled with DEBUG defined and the data pins are not set to input.
- * 
- * @return byte the data currently on the data bus
- */
-byte readDataBus();
 
 /**
  * @brief Reads a byte from the SST39SF at a specific address. Requires the data pins to be set to input.
@@ -54,20 +29,6 @@ byte readDataBus();
  * @return byte the data at that address
  */
 byte readByte(uint32_t address);
-
-/**
- * @brief 'Sends' a byte to an address. Requires the data pins to be set to output.
- * 
- * NOTE: This function is named as 'send' rather than 'write' because it is not capable of writing arbitrary
- * data to arbitrary addresses. As per the datasheet of the SST39SF, programming flash data requires a special
- * command sequence to be sent to the chip. Use writeByte to write arbitrary data.
- * 
- * Fails if compiled with DEBUG defined and the data pins are not set to output.
- * 
- * @param address the address to send to
- * @param data the data to send
- */
-void sendByte(uint32_t address, byte data);
 
 /**
  * @brief Writes a byte to an address. Requires the data pins to be set to output.
@@ -132,3 +93,5 @@ void eraseSector(uint16_t sectorIndex);
  * 
  */
 void eraseChip();
+
+#endif  // SST39SF_PROGRAMMER_READ_WRITE_H

@@ -4,7 +4,7 @@
 #include "read_write.h"
 #include "sst_constants.h"
 #include "fail.h"
-#include "debug.h"
+#include "globals.h"
 #include "pinout.h"
 
 #include <Arduino.h>
@@ -25,7 +25,7 @@
  * @param pin the number of the pin
  * @return int the mode of the pin with that pin number
  */
-int getPinMode(uint8_t pin) {
+static int getPinMode(uint8_t pin) {
   if (pin >= NUM_DIGITAL_PINS) return (-1);
 
   uint8_t bit = digitalPinToBitMask(pin);
@@ -42,7 +42,7 @@ int getPinMode(uint8_t pin) {
  * 
  * @param caller the calling function, to be included in the error message
  */
-void checkDataPinsIn(String caller) {
+static void checkDataPinsIn(String caller) {
     for (int i = DQ0; i < DQ0 + DATA_BUS_LENGTH; i++) {
         if (getPinMode(i) != INPUT) {
             fail("DEBUG assertion failed during " + caller + ": data pins are not in input mode.");
@@ -55,7 +55,7 @@ void checkDataPinsIn(String caller) {
  * 
  * @param caller the calling function, to be included in the error message
  */
-void checkDataPinsOut(String caller) {
+static void checkDataPinsOut(String caller) {
     for (int i = DQ0; i < DQ0 + DATA_BUS_LENGTH; i++) {
         if (getPinMode(i) != OUTPUT) {
             fail("DEBUG assertion failed during " + caller + ": data pins are not in output mode.");
@@ -64,9 +64,10 @@ void checkDataPinsOut(String caller) {
 }
 
 //=============================================================================
-//             PIN CONFIGURATION FUNCTIONS
+//             PIN CONFIGURATION
 //=============================================================================
 
+// See header comment.
 void setupControlPins() {
     pinMode(WRITE_ENABLE, OUTPUT);
     pinMode(OUTPUT_ENABLE, OUTPUT);
@@ -75,6 +76,7 @@ void setupControlPins() {
     digitalWrite(OUTPUT_ENABLE, HIGH);  // output enable is active low
 }
 
+// See header comment.
 void setupAddressPins() {
     for (int i = ADDR0; i < ADDR0 + ADDRESS_BUS_LENGTH; i++) {
         pinMode(i, OUTPUT);
@@ -82,12 +84,14 @@ void setupAddressPins() {
     }
 }
 
+// See header comment.
 void setDataPinsIn() {
     for (int i = DQ0; i < DQ0 + DATA_BUS_LENGTH; i++) {
         pinMode(i, INPUT);
     }
 }
 
+// See header comment.
 void setDataPinsOut() {
     for (int i = DQ0; i < DQ0 + DATA_BUS_LENGTH; i++) {
         pinMode(i, OUTPUT);
@@ -95,15 +99,30 @@ void setDataPinsOut() {
 }
 
 //=============================================================================
-//             BUS FUNCTIONS + READING/WRITING DATA
+//             BUS MANAGEMENT
 //=============================================================================
 
+/**
+ * @brief Set the address bus to a specific address. Requires the address pins to be set to input.
+ * 
+ * Note: the length of an address depends on which variant of the chip is being used, and
+ * is defined as ADDRESS_BUS_LENGTH in constants.h.
+ * 
+ * @param address the address to put on the address bus
+ */
 void setAddressBus(uint32_t address) {
     for (int i = 0; i < ADDRESS_BUS_LENGTH; i++) {
         digitalWrite(ADDR0 + i, bitRead(address, i));
     }
 }
 
+/**
+ * @brief Sets the data bus pins to a specific byte. Requires the data pins to be set to output.
+ * 
+ * Fails if compiled with DEBUG defined and the data pins are not set to output.
+ * 
+ * @param data the data to put on the data bus
+ */
 void setDataBus(byte data) {
 #ifdef DEBUG
     checkDataPinsOut("setDataBus");
@@ -114,6 +133,13 @@ void setDataBus(byte data) {
     }
 }
 
+/**
+ * @brief Reads what is currently on the data bus. Requires the data pins to be set to input.
+ * 
+ * Fails if compiled with DEBUG defined and the data pins are not set to input.
+ * 
+ * @return byte the data currently on the data bus
+ */
 byte readDataBus() {
 #ifdef DEBUG
     checkDataPinsIn("readDataBus");
@@ -128,6 +154,11 @@ byte readDataBus() {
     return input;
 }
 
+//=============================================================================
+//             READING/WRITING DATA
+//=============================================================================
+
+// See header comment.
 byte readByte(uint32_t address) {
 #ifdef DEBUG
     checkDataPinsIn("readByte");
@@ -149,7 +180,19 @@ byte readByte(uint32_t address) {
     return input;
 }
 
-void sendByte(uint32_t address, byte data) {
+/**
+ * @brief 'Sends' a byte to an address. Requires the data pins to be set to output.
+ * 
+ * NOTE: This function is named as 'send' rather than 'write' because it is not capable of writing arbitrary
+ * data to arbitrary addresses. As per the datasheet of the SST39SF, programming flash data requires a special
+ * command sequence to be sent to the chip. Use writeByte to write arbitrary data.
+ * 
+ * Fails if compiled with DEBUG defined and the data pins are not set to output.
+ * 
+ * @param address the address to send to
+ * @param data the data to send
+ */
+static void sendByte(uint32_t address, byte data) {
 #ifdef DEBUG
     checkDataPinsOut("sendByte");
 #endif
@@ -166,6 +209,7 @@ void sendByte(uint32_t address, byte data) {
     digitalWrite(WRITE_ENABLE, HIGH);
 }
 
+// See header comment.
 void writeByte(uint32_t address, byte data) {
 #ifdef DEBUG
     checkDataPinsOut("writeByte");
@@ -183,6 +227,7 @@ void writeByte(uint32_t address, byte data) {
 //             ERASING DATA
 //=============================================================================
 
+// See header comment.
 void eraseSectorStartingAt(uint32_t address) {
 #ifdef DEBUG
     checkDataPinsOut("eraseSectorStartingAt");
@@ -208,6 +253,7 @@ void eraseSectorStartingAt(uint32_t address) {
     delay(30);  // wait for sector to erase
 }
 
+// See header comment.
 void eraseSector(uint16_t sectorIndex) {
 #ifdef DEBUG
     checkDataPinsOut("eraseSector");
@@ -221,6 +267,7 @@ void eraseSector(uint16_t sectorIndex) {
     eraseSectorStartingAt(sectorIndex32 * SST_SECTOR_SIZE);
 }
 
+// See header comment.
 void eraseChip() {
 #ifdef DEBUG
     checkDataPinsOut("eraseChip");
