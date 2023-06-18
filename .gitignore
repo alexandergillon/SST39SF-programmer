@@ -1,6 +1,8 @@
 *.vscode/
 *.idea/
 
+/arduino/testing/
+
 /driver/*
 !/driver/*.cs
 
