@@ -4,6 +4,10 @@
 
 #define DEBUG
 
+/**
+ * @brief Enum that controls the state of the Arduino. The Arduino essentially operates as
+ * a state machine (see SST39SF-programmer.ino header for more info).
+ */
 enum ArduinoState {
     WAITING_FOR_COMMAND,
 
@@ -15,6 +19,7 @@ enum ArduinoState {
     BEGIN_ERASE_CHIP
 };
 
+/** @brief Global variable that holds the current state of the Arduino. */
 extern ArduinoState arduinoState;
 
 #endif  // SST39SF_PROGRAMMER_GLOBALS_H

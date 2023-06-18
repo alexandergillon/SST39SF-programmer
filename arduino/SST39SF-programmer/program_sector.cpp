@@ -8,15 +8,22 @@
 //             GLOBAL VARIABLES SPECIFIC TO THIS FILE
 //=============================================================================
 const uint8_t sectorBufferSize = 2;
-static byte sectorBuffer[sectorBufferSize];  // initialized to empty
+static byte sectorBuffer[sectorBufferSize];
 static uint8_t sectorBufferIndex = 0;
 static uint16_t sectorIndex = 0;
-byte sectorData[SST_SECTOR_SIZE];  // initialized to empty
 
+static byte sectorData[SST_SECTOR_SIZE]; 
 
 //=============================================================================
 //  FUNCTIONS TO PROCESS SERIAL INPUT WHEN PROGRAMMING A SECTOR
 //=============================================================================
+
+/**
+ * @brief Validates that the sector index (stored in sectorBuffer in little-endian order) is within range.
+ * If so, sends the driver an ACK, echoes the index back to the driver, and transitions state 
+ * to PROGRAM_SECTOR_GOT_INDEX. Otherwise, sends the driver a NAK message and transitions state 
+ * back to WAITING_FOR_COMMAND.
+ */
 void validateSectorIndex() {
     // sector index is transmitted as little endian
     sectorIndex = (((uint16_t)sectorBuffer[1]) << 8) | ((uint16_t)sectorBuffer[0]);  
@@ -33,6 +40,13 @@ void validateSectorIndex() {
     }
 }
 
+/**
+ * @brief Receives the sector data from the driver, and puts it into the sectorData global variable.
+ * After receiving all data, echoes it back to the driver and transitions state to PROGRAM_SECTOR_GOT_DATA.
+ * 
+ * @param firstByte the first byte of the sector data (due to the structure of this program, this was
+ * already read at an earlier time, so we need to make sure it isn't lost)
+ */
 void receiveSectorData(byte firstByte) {
     sectorData[0] = firstByte;
     uint16_t index = 1;
@@ -50,6 +64,12 @@ void receiveSectorData(byte firstByte) {
     arduinoState = PROGRAM_SECTOR_GOT_DATA;
 }
 
+/**
+ * @brief Programs a sector. The index of the sector is taken from the sectorIndex global variable,
+ * and the data from the sectorData global variable. On success, sends the driver an ACK and
+ * transitions state to WAITING_FOR_COMMAND. On failure, goes into a loop, sending a NAK message
+ * to the driver at regular intervals.
+ */
 void programSector() {
     int32_t sectorIndex32 = sectorIndex;  // needed or the multiplication below will get truncated
     int32_t startAddress = sectorIndex32 * SST_SECTOR_SIZE;
@@ -72,6 +92,7 @@ void programSector() {
     arduinoState = WAITING_FOR_COMMAND;
 }
 
+// see header comment
 void processByteProgramSector(byte b) {
     switch (arduinoState) {
         case BEGIN_PROGRAM_SECTOR:

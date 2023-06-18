@@ -2,27 +2,38 @@
 using System.IO;
 using System.IO.Ports;
 using System.Collections.Generic;
-using System.IO.MemoryMappedFiles;
 using System.Security;
 using System.Threading;
 
-// C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe ArduinoDriver.cs
-// Powershell command for compiling and running: (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3"))
+// C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe Arduino.cs ArduinoDriver.cs ArduinoDriverLogger.cs Util.cs SectorProgrammer.cs
+// Powershell command for compiling and running: (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3")) - not sure if this still works with multiple source files
 
+/// <summary> Class which drives the Arduino. Contains the main function, which parses arguments and drives the
+/// Arduino appropriately. </summary>
 class ArduinoDriver {
-    private const string ARDUINO_WAIT_MESSAGE = "WAITING\0";
-    // the number of times to retry any communication operation with the Arduino before giving up
-    internal const int NUM_RETRIES = 2;
-    internal const int NORMAL_TIMEOUT = 2000;
-    internal const int EXTENDED_TIMEOUT = 10000;
-
-    internal const bool VERBOSE = true;
-
+    /// <summary> Enum to control what mode flag the user passed in at the command line. </summary>
     private enum OperationMode {
         WRITE_BINARY,
         ERASE_CHIP
     }
+    
+    //=============================================================================
+    //             CONSTANTS
+    //=============================================================================
+    
+    
+    // the number of times to retry any communication operation with the Arduino before giving up
+    internal const int NUM_RETRIES = 2;
+    
+    internal const int NORMAL_TIMEOUT = 2000;     // ms 
+    internal const int EXTENDED_TIMEOUT = 10000;  // ms 
 
+    internal const bool VERBOSE = true;  // prints extra debugging output
+    
+    //=============================================================================
+    //             UTILITY METHODS
+    //=============================================================================
+    
     /// <summary>
     /// Prints an error message, followed by a help message, and exits.
     /// </summary>
@@ -41,6 +52,10 @@ class ArduinoDriver {
         Console.Write(helpMessage);
         Environment.Exit(1);
     }
+    
+    //=============================================================================
+    //             ARGUMENT PARSING METHODS
+    //=============================================================================
 
     /// <summary>
     /// Parses the mode string into an operation mode: <br/>
@@ -59,16 +74,6 @@ class ArduinoDriver {
                 return OperationMode.WRITE_BINARY;  // for the compiler: can't get here
         }
     }
-
-    /*
-    /// <summary>
-    /// Checks that a path exists, as a file (not a directory). If not, prints an error message and exits.
-    /// </summary>
-    /// <param name="path"></param>
-    private static void CheckFileExists(string path) {
-        if (!File.Exists(path)) PrintHelpAndExit("File path " + path + " does not exist.");
-    }
-    */
 
     /// <summary>
     /// Parses the command line arguments. On error, prints a message and exits.
@@ -102,6 +107,10 @@ class ArduinoDriver {
                 break;
         }
     }
+    
+    //=============================================================================
+    //             ARGUMENT PARSING METHODS
+    //=============================================================================
 
     /// <summary>
     /// Opens a serial port with a specified name. On failure (port does not exist, is already in use, etc.),
@@ -127,6 +136,10 @@ class ArduinoDriver {
         }
     }
     
+    //=============================================================================
+    //             INITIALIZATION METHODS
+    //=============================================================================
+    
     /// <summary>
     /// Processes the message that the Arduino sent us during communication initialization. If the Arduino sent us
     /// the correct message, responds with an ACK and returns. Else, prints an error message and exits.
@@ -138,16 +151,17 @@ class ArduinoDriver {
     /// <returns></returns>
     private static void ProcessArduinoMessage(Arduino arduino, List<byte> receivedBeforeMessageStart, List<byte> waitingMessageBytes) {
         string waitingMessage = System.Text.Encoding.ASCII.GetString(waitingMessageBytes.ToArray());
-        if (waitingMessage.Equals(ARDUINO_WAIT_MESSAGE)) {
+        if (waitingMessage.Equals(Arduino.ARDUINO_WAIT_MESSAGE)) {
             arduino.ACK();
             Console.WriteLine("Received communication initialization message from Arduino: acknowledged.");
         } else {
-            // Didn't get the correct message from the Arduino: print what we did get and exit.
+            // Didn't get the correct message from the Arduino: print what we did get (including bytes before
+            // message start) and exit.
             receivedBeforeMessageStart.AddRange(waitingMessageBytes);
             byte[] badBytes = receivedBeforeMessageStart.ToArray();
             string badBytesAsString = System.Text.Encoding.ASCII.GetString(badBytes);
 
-            Console.Write("Did not receive expected message " + ARDUINO_WAIT_MESSAGE + ", received "
+            Console.Write("Did not receive expected message " + Arduino.ARDUINO_WAIT_MESSAGE + ", received "
                           + badBytesAsString + " instead. As hex representation, this is:"
                           + Environment.NewLine);
             for (int i = 0; i < badBytes.Length; i++) {
@@ -168,27 +182,33 @@ class ArduinoDriver {
     /// <returns>A serial port, connected to the Arduino, with the Arduino in its main loop.</returns>
     private static Arduino ConnectToArduino(string serialPortName) {
         Arduino arduino = OpenSerialPort(serialPortName);
-        arduino.ReadTimeout = NORMAL_TIMEOUT;  // we want a 2s timeout here as the Arduino transmits every second, but we
-                                     // set this back to infinite before returning it to the caller
+        arduino.ReadTimeout = NORMAL_TIMEOUT;
 
         /* For some reason, characters are dropped during the first few reads. I have observed reads such as WAITWAITING
          * or WATIGWAITING, etc. Giving the serial port some time to 'warm up' and dropping the first few characters
          * seems to fix the issue. */
-        System.Threading.Thread.Sleep(1000);
+        Thread.Sleep(1000);
         arduino.DiscardInBuffer();
 
         bool messageStarted = false;
-        List<byte> bytesBeforeMessageStart = new List<byte>(ARDUINO_WAIT_MESSAGE.Length);
-        List<byte> messageBytes = new List<byte>(ARDUINO_WAIT_MESSAGE.Length);
+        List<byte> bytesBeforeMessageStart = new List<byte>(Arduino.ARDUINO_WAIT_MESSAGE.Length);
+        List<byte> messageBytes = new List<byte>(Arduino.ARDUINO_WAIT_MESSAGE.Length);
 
+        /* In this loop we process what the Arduino is expecting, one byte at a time. We are looking for the string
+         * 'WAITING\0' (\0 is a null byte), so we skip bytes until we see our first W. Then we read the expected
+         * number of bytes and check whether the sent message is what we expected.
+         *
+         * We still save bytes that came before this first W, however. This is because that W may never come, if the
+         * Arduino is not in the right state. If that first W never comes (i.e. too many other bytes occur before
+         * seeing a W), or it does come but the message doesn't match, then we have all the bytes that were received
+         * from the Arduino while waiting for this message, and we can print them for debugging output. */
         while (true) {
             byte inputByte;
             try {
                 inputByte = (byte)arduino.ReadByte();
             } catch (TimeoutException) {
-                Console.WriteLine("Timed out (>2 seconds) while waiting for data from Arduino during communication " +
-                                  "initialization.");
-                Util.Exit(1, arduino);
+                Util.PrintAndExitFlushLogs("Timed out (>2 seconds) while waiting for data from Arduino " +
+                                           "during communication initialization.", arduino);
                 return null;  // for the compiler, so it knows that inputByte is always initialized
             }
 
@@ -205,8 +225,9 @@ class ArduinoDriver {
                 messageBytes.Add(inputByte);
             }
 
-            if (messageBytes.Count >= ARDUINO_WAIT_MESSAGE.Length
-                    || bytesBeforeMessageStart.Count >= ARDUINO_WAIT_MESSAGE.Length
+            // If any of these are true, we either got a (possibly correct) message, or have received too much unrelated stuff
+            if (messageBytes.Count >= Arduino.ARDUINO_WAIT_MESSAGE.Length
+                    || bytesBeforeMessageStart.Count >= Arduino.ARDUINO_WAIT_MESSAGE.Length
                     || inputByte == '\0') {
                 ProcessArduinoMessage(arduino, bytesBeforeMessageStart, messageBytes);
                 arduino.ReadTimeout = SerialPort.InfiniteTimeout;
@@ -219,7 +240,11 @@ class ArduinoDriver {
             }
         }
     }
-
+    
+    //=============================================================================
+    //             METHODS THAT PROGRAM THE SST39SF
+    //=============================================================================
+    
     /// <summary>
     /// Opens a binary file as a read-only file stream. On error, prints a message and exits.
     /// </summary>
@@ -255,8 +280,8 @@ class ArduinoDriver {
     private static void WriteBinary(Arduino arduino, string binaryPath) {
         using (FileStream binaryFile = OpenBinaryFile(binaryPath)) {
             if (binaryFile.Length > Arduino.SST_FLASH_SIZE) {
-                Util.PrintAndExitFlushLogs("File is too large to fit on the SST chip. Check that size constants have been" +
-                                  "set correctly", arduino);
+                Util.PrintAndExitFlushLogs("File is too large to fit on the SST chip. Check that size " +
+                                           "constants have been set correctly", arduino);
             }
 
             int binaryLength = (int)binaryFile.Length;
@@ -268,6 +293,7 @@ class ArduinoDriver {
 
             // There is a bit more data: program a partial sector
             if (binaryLength % Arduino.SST_SECTOR_SIZE != 0) {
+                // ProgramSector handles padding the data
                 SectorProgrammer.ProgramSector(arduino, binaryFile, numberOfSectors);
             }
             
@@ -278,6 +304,10 @@ class ArduinoDriver {
     private static void EraseChip(Arduino arduino) {
         // todo
     }
+    
+    //=============================================================================
+    //             MAIN
+    //=============================================================================
 
     /// Main function: parses arguments and drives the Arduino accordingly.
     public static int Main(string[] args) {

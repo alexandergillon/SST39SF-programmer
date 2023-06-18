@@ -1,5 +1,6 @@
 /**
- * This program is based off the following tutorial: https://mint64.home.blog/2018/07/30/parallel-nor-flash-eeprom-programmer-using-an-arduino-part-2-arduino-code-and-serial-comms/.
+ * A core resource for how I figured out how to program the SST39SF chip
+ * is the following tutorial: https://mint64.home.blog/2018/07/30/parallel-nor-flash-eeprom-programmer-using-an-arduino-part-2-arduino-code-and-serial-comms/.
  */
 #include "sst_constants.h"
 #include "read_write.h"
@@ -8,6 +9,7 @@
 #include "globals.h"
 #include <Arduino.h>
 
+// required to be declared in one file
 ArduinoState arduinoState;
 
 //=============================================================================
@@ -32,6 +34,11 @@ void loop() {
     }
 }
 
+/**
+ * @brief Processes a byte of input from the driver.
+ * 
+ * @param b the byte of input to process
+ */
 static void processByte(byte b) {
     switch (arduinoState) {
         case WAITING_FOR_COMMAND:
@@ -53,23 +60,21 @@ static void processByte(byte b) {
 //  Fuctions to process input while waiting for a command
 //=============================================================================
 
-void checkForCommand(char *command) {
-    // arduinoState is WAITING_FOR_COMMAND at the start of this function
-    if (strcmp(command, "PROGRAMSECTOR") == 0) {
-        arduinoState = BEGIN_PROGRAM_SECTOR;
-        sendACK();
-    } else if (strcmp(command, "ERASECHIP") == 0) {
-        arduinoState = BEGIN_ERASE_CHIP;
-        // todo
-    } else {
-        String badCommand = String(command);
-        sendNAKMessage("Received unrecognized command: " + badCommand);
-    }
-}
-
 const uint16_t commandBufferSize = 32;
-static byte commandBuffer[commandBufferSize];  // initialized to empty
-static uint16_t commandBufferIndex;            // initialized to zero
+static byte commandBuffer[commandBufferSize];
+static uint16_t commandBufferIndex = 0;      
+
+/**
+ * @brief Processes a byte of serial input while the Arduino is waiting for a command.
+ * This means that the Arduino is in the WAITING_FOR_COMMAND state. Behavior is unspecified
+ * if the Arduino is in any other state.
+ * 
+ * If the Arduino receives the last byte of a command (which will be a null byte), checks
+ * which command was sent and changes state accordingly (failing if the command is not valid).
+ * If the Arduino receives too many bytes without a null byte, sends a NAK message to the driver.
+ * 
+ * @param b the byte of input to process
+ */
 void processIncomingCommand(byte b) {
     if (b != (byte)'\0') {
         commandBuffer[commandBufferIndex] = b;
@@ -83,6 +88,26 @@ void processIncomingCommand(byte b) {
         commandBuffer[commandBufferIndex] = b;
         checkForCommand((char*)commandBuffer);
         commandBufferIndex = 0;  // clear the buffer
+    }
+}
+
+/**
+ * @brief Checks for which command was issued, changing state accordingly. If
+ * the command is not valid, sends a NAK message to the driver.
+ * 
+ * @param command the command that was issued, as a null-terminated string
+ */
+void checkForCommand(char *command) {
+    // arduinoState is WAITING_FOR_COMMAND at the start of this function
+    if (strcmp(command, "PROGRAMSECTOR") == 0) {
+        arduinoState = BEGIN_PROGRAM_SECTOR;
+        sendACK();
+    } else if (strcmp(command, "ERASECHIP") == 0) {
+        arduinoState = BEGIN_ERASE_CHIP;
+        // todo
+    } else {
+        String badCommand = String(command);
+        sendNAKMessage("Received unrecognized command: " + badCommand);
     }
 }
 

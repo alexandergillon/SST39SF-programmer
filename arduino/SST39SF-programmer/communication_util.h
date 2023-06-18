@@ -7,7 +7,7 @@
 //             CONSTANTS
 //=============================================================================
 
-#define SERIAL_BAUD_RATE 9600
+#define SERIAL_BAUD_RATE 115200
 
 #define ACK ((byte)0x06)
 #define NAK ((byte)0x15)
