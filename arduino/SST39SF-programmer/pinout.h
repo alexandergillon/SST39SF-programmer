@@ -13,6 +13,11 @@
 //=============================================================================
 //  Pins for debugging/Arduino status
 //=============================================================================
+/* This pin is read at startup. If it is held low, the Arduino enters a debug mode, where
+it prints out the entire memory of the SST39SF chip for debugging purposes. Otherwise,
+if it is held high (or disconnected), the Arduino begins normal operation. */
+#define DEBUG_MODE_PIN 4                  
+
 #define WAITING_FOR_COMMUNICATION_LED A15  // suggested color: white
 #define WORKING_LED A14                    // suggested color: blue
 #define FINISHED_LED A13                   // suggested color: green

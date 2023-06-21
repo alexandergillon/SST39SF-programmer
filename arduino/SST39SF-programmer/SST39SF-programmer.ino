@@ -7,10 +7,44 @@
 #include "communication_util.h"
 #include "program_sector.h"
 #include "globals.h"
+#include "pinout.h"
 #include <Arduino.h>
 
 // required to be declared in one file
 ArduinoState arduinoState;
+
+//=============================================================================
+//             DEBUGGING
+//=============================================================================
+
+volatile int infinite_loop_int;  // To ensure the compiler doesn't optimize our infinite loop.
+                                 // Not sure if this is necessary on Arduino.
+void checkForDebugMode() {
+    pinMode(DEBUG_MODE_PIN, INPUT_PULLUP);
+    if (digitalRead(DEBUG_MODE_PIN) == LOW) {
+        Serial.begin(SERIAL_BAUD_RATE);
+        const int bytes_per_line = 16;
+        setDataPinsIn();
+        int newline_counter = bytes_per_line;  // so that we print the initial memory address '0x0'
+        for (uint32_t i = 0; i < SST_FLASH_SIZE; i++) {
+            if (newline_counter >= bytes_per_line) {
+                Serial.print("\n0x");
+                Serial.print(i, HEX);
+                Serial.print(" ");
+                newline_counter = 0;
+            }
+            byte b = readByte(i);
+            Serial.print("0x");
+            Serial.print(b, HEX);
+            Serial.print(" ");
+            newline_counter++;
+        }
+        Serial.print("\n");
+        while (true) {
+            infinite_loop_int = 0;  // so that this loop is not optimized away
+        }
+    }
+}
 
 //=============================================================================
 //             SETUP AND LOOP
@@ -20,8 +54,10 @@ void setup() {
     setupControlPins();
     setupAddressPins();
     setDataPinsIn();
-    setupLEDs();
 
+    checkForDebugMode();
+
+    setupLEDs();
     connectToDriver();
     setLEDStatus(WORKING);
     arduinoState = WAITING_FOR_COMMAND;
