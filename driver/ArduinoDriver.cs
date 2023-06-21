@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Security;
 using System.Threading;
 
-// C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe Arduino.cs ArduinoDriver.cs ArduinoDriverLogger.cs Util.cs SectorProgrammer.cs
+// C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe Arduino.cs ArduinoDriver.cs ArduinoDriverLogger.cs Util.cs SectorProgramming.cs
 // Powershell command for compiling and running: (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3")) - not sure if this still works with multiple source files
 
 /// <summary> Class which drives the Arduino. Contains the main function, which parses arguments and drives the
@@ -273,13 +273,13 @@ class ArduinoDriver {
             int numberOfSectors = binaryLength / Arduino.SST_SECTOR_SIZE;
             
             for (int sectorIndex = 0; sectorIndex < numberOfSectors; sectorIndex++) {
-                SectorProgrammer.ProgramSector(arduino, binaryFile, sectorIndex);
+                SectorProgramming.ProgramSector(arduino, binaryFile, sectorIndex);
             }
 
             // There is a bit more data: program a partial sector
             if (binaryLength % Arduino.SST_SECTOR_SIZE != 0) {
                 // ProgramSector handles padding the data
-                SectorProgrammer.ProgramSector(arduino, binaryFile, numberOfSectors);
+                SectorProgramming.ProgramSector(arduino, binaryFile, numberOfSectors);
             }
             
             Console.WriteLine("Finished writing binary to SST39SF.");

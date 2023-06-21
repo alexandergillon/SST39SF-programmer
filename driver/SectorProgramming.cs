@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 
 /// <summary> Class which handles programming a sector of the SST39SF via the Arduino. </summary>
-public class SectorProgrammer {
+public class SectorProgramming {
     //=============================================================================
     //             INITIAL PROGRAMSECTOR MESSAGE
     //=============================================================================

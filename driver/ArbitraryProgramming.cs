@@ -120,7 +120,7 @@ public class ArbitraryProgramming {
                               "at the end of file.");
         }
 
-        SectorProgrammer.ProgramSector(arduino, new MemoryStream(firstSectorData), startingSector);
+        SectorProgramming.ProgramSector(arduino, new MemoryStream(firstSectorData), startingSector);
     }
     
     /// <summary>
@@ -132,7 +132,7 @@ public class ArbitraryProgramming {
     /// <param name="binaryFile">The data to program.</param>
     private static void ProgramRemainingSectors(Arduino arduino, int sectorIndex, FileStream binaryFile) {
         while (binaryFile.Position < binaryFile.Length) {
-            SectorProgrammer.ProgramSector(arduino, binaryFile, sectorIndex);
+            SectorProgramming.ProgramSector(arduino, binaryFile, sectorIndex);
             sectorIndex++;
         }
     }
