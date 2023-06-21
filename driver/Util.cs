@@ -1,4 +1,6 @@
-﻿using System; 
+﻿using System;
+using System.IO;
+using System.Security;
 
 /// <summary> Class with utility functions. </summary>
 public class Util {
@@ -42,5 +44,32 @@ public class Util {
     internal static void Exit(int exitCode, Arduino arduino) {
         arduino.CleanupForExit();
         Environment.Exit(exitCode);
+    }
+
+    /// <summary>
+    /// Opens a binary file as a read-only file stream. On error, prints a message and exits.
+    /// </summary>
+    /// <param name="path">The path of the binary file to open.</param>
+    /// <returns>A file stream reading from that file.</returns>
+    internal static FileStream OpenBinaryFile(string path) {
+        try {
+            return new FileStream(path, FileMode.Open, FileAccess.Read);
+        } catch (ArgumentException e) {
+            PrintAndExit("Binary file path is invalid:\n" + e);
+        } catch (FileNotFoundException) {
+            PrintAndExit("File " + path + " was not found.");
+        } catch (DirectoryNotFoundException e) {
+            PrintAndExit("Binary file path is invalid:\n" + e);
+        } catch (PathTooLongException) {
+            PrintAndExit("Path " + path + " is too long.");
+        } catch (IOException e) {
+            PrintAndExit("IOException while trying to memory map binary file:\n" + e);
+        } catch (SecurityException) {
+            PrintAndExit("Internal error (SecurityException): " + path);
+        } catch (UnauthorizedAccessException) {
+            PrintAndExit("Invalid permissions to open " + path);
+        }
+        
+        return null;  // for the compiler
     }
 }

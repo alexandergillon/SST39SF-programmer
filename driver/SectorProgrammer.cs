@@ -259,7 +259,7 @@ public class SectorProgrammer {
     /// <param name="data">The data to program into the sector: the first Arduino.SST_SECTOR_SIZE are read from
     /// this stream.</param>
     /// <param name="sectorIndex">The index of the sector to program.</param>
-    internal static void ProgramSector(Arduino arduino, FileStream data, int sectorIndex) {
+    internal static void ProgramSector(Arduino arduino, Stream data, int sectorIndex) {
         // SectorData is initialized to all zeroes: this implicitly pads the sector data if we don't have a full 4KB
         // (which can only happen on the last sector, if at all).
         byte[] sectorData = new byte[Arduino.SST_SECTOR_SIZE];

@@ -193,7 +193,7 @@ class Arduino : SerialPort {
         return numRead;
     }
 
-    /// Wraps SerialPort.Write(byte[], int, int) for logging purposes. Functions the same as SerialPort.Write() to
+    /// Wraps SerialPort.ExecuteInstructions(byte[], int, int) for logging purposes. Functions the same as SerialPort.ExecuteInstructions() to
     /// the caller, except for logging the bytes that were written.
     public new void Write(byte[] buffer, int offset, int count) {
         byte[] bytesWritten = new byte[count];
@@ -204,7 +204,7 @@ class Arduino : SerialPort {
         base.Write(buffer, offset, count);
     }
 
-    /// Wraps SerialPort.Write(string) for logging purposes. Functions the same as SerialPort.Write() to
+    /// Wraps SerialPort.ExecuteInstructions(string) for logging purposes. Functions the same as SerialPort.ExecuteInstructions() to
     /// the caller, except for logging the bytes that were written.
     public new void Write(string s) {
         byte[] bytesWritten = Encoding.ASCII.GetBytes(s);

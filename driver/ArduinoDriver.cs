@@ -13,8 +13,9 @@ using System.Threading;
 class ArduinoDriver {
     /// <summary> Enum to control what mode flag the user passed in at the command line. </summary>
     private enum OperationMode {
-        WRITE_BINARY,
-        ERASE_CHIP
+        WRITE_BINARY,     // write a binary file directly to the chip, starting at address 0
+        ARBITRARY_WRITE,  // arbitrary writes based on a file with instructions: see ArbitraryProgramming.cs for format
+        ERASE_CHIP        // erase the chip
     }
     
     //=============================================================================
@@ -43,11 +44,17 @@ class ArduinoDriver {
         const string helpMessage =
             "usage: ArduinoDriver.exe <SERIALPORT> <MODE> [OPTS]\n" +
             "\n" +
-            "    ArduinoDriver.exe <SERIALPORT> -w <BIN>        Writes a binary file to the SST39SF\n" +
+            "    ArduinoDriver.exe <SERIALPORT> -w <BIN>                     Writes a binary file to the SST39SF\n" +
             "        <SERIALPORT>        Name of the serial port to connect to the Arduino on (e.g. \"COM3\")\n" +
             "        <BIN>               Path to the binary file to write to the SST39SF\n" +
             "\n" +
-            "    ArduinoDriver.exe <SERIALPORT> -e              Erases the SST39SF\n" +
+            "    ArduinoDriver.exe <SERIALPORT> -a <INSTRUCTION FILE>        Writes data to arbitrary positions on the\n" +
+            "                                                                SST39SF. See ArbitraryProgramming.cs for file\n"+
+            "                                                                format.\n" +
+            "        <SERIALPORT>        Name of the serial port to connect to the Arduino on (e.g. \"COM3\")\n" +
+            "        <INSTRUCTION FILE>  Path to the instruction file: see ArbitraryProgramming.cs for file format\n" +
+            "\n" +
+            "    ArduinoDriver.exe <SERIALPORT> -e                           Erases the SST39SF\n" +
             "        <SERIALPORT>        Name of the serial port to connect to the Arduino on (e.g. \"COM3\")\n";
         Console.Write(helpMessage);
         Environment.Exit(1);
@@ -68,6 +75,7 @@ class ArduinoDriver {
     private static OperationMode ParseMode(string mode) {
         switch (mode) {
             case "-w": return OperationMode.WRITE_BINARY;
+            case "-a": return OperationMode.ARBITRARY_WRITE;
             case "-e": return OperationMode.ERASE_CHIP;
             default: 
                 PrintHelpAndExit("Mode not recognized.");
@@ -96,6 +104,10 @@ class ArduinoDriver {
         switch (mode) {
             case OperationMode.WRITE_BINARY:
                 if (args.Length <= 2) PrintHelpAndExit("-w supplied, but no path to binary file supplied.");
+                path = Path.GetFullPath(args[2]);
+                break;
+            case OperationMode.ARBITRARY_WRITE:
+                if (args.Length <= 2) PrintHelpAndExit("-a supplied, but no path to instruction file supplied.");
                 path = Path.GetFullPath(args[2]);
                 break;
             case OperationMode.ERASE_CHIP:
@@ -244,33 +256,6 @@ class ArduinoDriver {
     //=============================================================================
     //             METHODS THAT PROGRAM THE SST39SF
     //=============================================================================
-    
-    /// <summary>
-    /// Opens a binary file as a read-only file stream. On error, prints a message and exits.
-    /// </summary>
-    /// <param name="path">The path of the binary file to open.</param>
-    /// <returns>A file stream reading from that file.</returns>
-    private static FileStream OpenBinaryFile(string path) {
-        try {
-            return new FileStream(path, FileMode.Open, FileAccess.Read);
-        } catch (ArgumentException e) {
-            Util.PrintAndExit("Binary file path is invalid:\n" + e);
-        } catch (FileNotFoundException) {
-            Util.PrintAndExit("File " + path + " was not found.");
-        } catch (DirectoryNotFoundException e) {
-            Util.PrintAndExit("Binary file path is invalid:\n" + e);
-        } catch (PathTooLongException) {
-            PrintHelpAndExit("Path " + path + " is too long.");
-        } catch (IOException e) {
-            Util.PrintAndExit("IOException while trying to memory map binary file:\n" + e);
-        } catch (SecurityException) {
-            Util.PrintAndExit("Internal error (SecurityException): " + path);
-        } catch (UnauthorizedAccessException) {
-            Util.PrintAndExit("Invalid permissions to open " + path);
-        }
-        
-        return null;  // for the compiler
-    }
 
     /// <summary>
     /// Writes a binary file to the SST39SF chip.
@@ -278,7 +263,7 @@ class ArduinoDriver {
     /// <param name="arduino">A serial connection to the Arduino.</param>
     /// <param name="binaryPath">The path of the file to write to the SST39SF.</param>
     private static void WriteBinary(Arduino arduino, string binaryPath) {
-        using (FileStream binaryFile = OpenBinaryFile(binaryPath)) {
+        using (FileStream binaryFile = Util.OpenBinaryFile(binaryPath)) {
             if (binaryFile.Length > Arduino.SST_FLASH_SIZE) {
                 Util.PrintAndExitFlushLogs("File is too large to fit on the SST chip. Check that size " +
                                            "constants have been set correctly", arduino);
@@ -320,6 +305,9 @@ class ArduinoDriver {
         switch (mode) {
             case OperationMode.WRITE_BINARY:
                 WriteBinary(arduino, path);
+                break;
+            case OperationMode.ARBITRARY_WRITE:
+                ArbitraryProgramming.ExecuteInstructions(arduino, path);
                 break;
             case OperationMode.ERASE_CHIP:
                 EraseChip(arduino);
