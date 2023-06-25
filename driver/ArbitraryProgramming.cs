@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-
-/*
+﻿/*
+ * Class which implements arbitrary programming functionality. This essentially allows binary files to be written at
+ * arbitrary memory locations in the SST39SF chip. See FILE FORMAT below for information on how to use this
+ * functionality.
+ *
  * FILE FORMAT
  *   Each line is of the form: 0x<ADDRESS> <PATH>. I.e. starting with a hex address of the form 0x???, then a space,
  *   and then a file path. These lines are instructions of the form 'write the data at <PATH> to the region of
@@ -34,8 +33,28 @@ using System.Text;
  *   NOTE: the file format is very rigidly parsed. There are no guarantees as to how instructions will be parsed if
  *   they do not confirm to the format detailed above. For example, avoid leading or trailing spaces, and use exactly
  *   1 space to separate the address and the file.
- *   
+ *
+ * ---------------------------------------------------------------------------------------------------------------------
+ * 
+ * Copyright (C) 2023 Alexander Gillon
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 /// <summary> Class which handles writes to arbitrary addresses on the SST39SF. Uses a special file format,
 /// detailed above. </summary>

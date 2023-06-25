@@ -1,10 +1,28 @@
-﻿using System;
+﻿/*
+ * Main class. Drives the Arduino to perform functionality based on command line arguments.
+ *
+ * C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe <all .cs files>
+ * Powershell command for compiling and running: (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3")) - not sure if this still works with multiple source files
+ * 
+ * Copyright (C) 2023 Alexander Gillon
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Threading;
-
-// C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe <all .cs files> SectorProgramming.cs
-// Powershell command for compiling and running: (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3")) - not sure if this still works with multiple source files
 
 /// <summary> Class which drives the Arduino. Contains the main function, which parses arguments and drives the
 /// Arduino appropriately. </summary>

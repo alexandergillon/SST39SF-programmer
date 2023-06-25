@@ -1,3 +1,21 @@
+/*
+ * A series of utility functions and constants for communciating with the Arduino.
+ * 
+ * Copyright (C) 2023 Alexander Gillon
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #ifndef SST39SF_PROGRAMMER_COMMUNICATION_UTIL_H
 #define SST39SF_PROGRAMMER_COMMUNICATION_UTIL_H
 
@@ -83,5 +101,13 @@ void sendNAKMessage(String errorMessage);
 /** @brief Connects to the driver. This involves opening the serial port, repeatedly sending 
  * the 'WATITING\0' message, and waiting for the driver to acknowledge. */
 void connectToDriver();
+
+/**
+ * @brief Goes into an infinite loop, sending a NAK message (see communication_util.h, sendNAKMessage) 
+ * to serial at regular intervals.
+ * 
+ * @param errorMessage the message to send in the NAK message
+ */
+void fail(String errorMessage);
 
 #endif  // SST39SF_PROGRAMMER_COMMUNICATION_UTIL_H
