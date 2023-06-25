@@ -39,7 +39,7 @@ using System.Text;
 
 /// <summary> Class which handles writes to arbitrary addresses on the SST39SF. Uses a special file format,
 /// detailed above. </summary>
-public class ArbitraryProgramming {
+internal static class ArbitraryProgramming {
     //=============================================================================
     //             CORE FUNCTION - CALLED BY OTHER CLASSES
     //=============================================================================
@@ -104,7 +104,7 @@ public class ArbitraryProgramming {
 
             ProcessFirstSector(sectorIndexToData, address, binaryFile);
             
-            int sector = (address % Arduino.SST_SECTOR_SIZE) + 1;
+            int sector = address % Arduino.SST_SECTOR_SIZE + 1;
             ProcessRemainingSectors(sectorIndexToData, sector, binaryFile);
         }
     }

@@ -1,8 +1,32 @@
 ﻿using System;
 
 /// <summary> Class which handles erasing the chip. </summary>
-public class ChipErase {
+internal static class ChipErase {
+    //=============================================================================
+    //             CONSTANTS
+    //=============================================================================
+    
+    private const string ERASE_CHIP_MESSAGE = "ERASECHIP";
     private const string CONFIRM_MESSAGE = "CONFIRM?\0";
+    
+    //=============================================================================
+    //             CORE FUNCTION - CALLED BY OTHER CLASSES
+    //=============================================================================
+    
+    /// <summary>
+    /// Erases the chip.
+    /// </summary>
+    /// <param name="arduino">A serial port connected to the Arduino.</param>
+    internal static void EraseChip(Arduino arduino) {
+        Util.SendCommandMessage(arduino, ERASE_CHIP_MESSAGE);
+        ReceiveConfirmMessage(arduino);
+        ConfirmWithUser(arduino);
+        Util.WaitForAck(arduino, "chip erase", false);
+    }
+    
+    //=============================================================================
+    //             COMMUNICATING WITH ARDUINO
+    //=============================================================================
 
     /// <summary>
     /// Waits for the 'CONFIRM?' message from the Arduino. If this is received from the Arduino, returns. Otherwise,
@@ -41,20 +65,9 @@ public class ChipErase {
         }
 
         if (userInput.ToLower() == "y") {
-            arduino.ACK();
+            arduino.Ack();
         } else {
-            arduino.NAK();
+            arduino.Nak();
         }
-    }
-    
-    /// <summary>
-    /// Erases the chip.
-    /// </summary>
-    /// <param name="arduino">A serial port connected to the Arduino.</param>
-    internal static void EraseChip(Arduino arduino) {
-        Util.SendCommandMessage(arduino, "ERASECHIP");
-        ReceiveConfirmMessage(arduino);
-        ConfirmWithUser(arduino);
-        Util.WaitForAck(arduino, "chip erase", false);
     }
 }

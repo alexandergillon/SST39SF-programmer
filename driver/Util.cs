@@ -3,7 +3,11 @@ using System.IO;
 using System.Security;
 
 /// <summary> Class with utility functions. </summary>
-public class Util {
+internal static class Util {
+    //=============================================================================
+    //             DEBUGGING + EXITING METHODS
+    //=============================================================================
+    
     /// <summary>
     /// Writes a line to the console, only if the program was compiled with VERBOSE = true.
     /// </summary>
@@ -12,6 +16,16 @@ public class Util {
         if (ArduinoDriver.VERBOSE) {
             Console.WriteLine(s);
         }
+    }
+    
+    /// <summary>
+    /// Prints an error message and exits. Note: if any communication has occured with the Arduino, use
+    /// PrintAndExitFlushLogs instead to ensure communication logs are flushed before exiting.
+    /// </summary>
+    /// <param name="errorMessage">The error message to print.</param>
+    internal static void PrintAndExit(string errorMessage) {
+        Console.WriteLine(errorMessage);
+        Environment.Exit(1);
     }
 
     /// <summary>
@@ -26,16 +40,6 @@ public class Util {
     }
     
     /// <summary>
-    /// Prints an error message and exits. Note: if any communication has occured with the Arduino, use
-    /// PrintAndExitFlushLogs instead to ensure communication logs are flushed before exiting.
-    /// </summary>
-    /// <param name="errorMessage">The error message to print.</param>
-    internal static void PrintAndExit(string errorMessage) {
-        Console.WriteLine(errorMessage);
-        Environment.Exit(1);
-    }
-
-    /// <summary>
     /// Exits, flushing the Arduino's logs.
     /// </summary>
     /// <param name="exitCode">The exit code to exit with.</param>
@@ -45,6 +49,10 @@ public class Util {
         arduino.CleanupForExit();
         Environment.Exit(exitCode);
     }
+    
+    //=============================================================================
+    //             OPENING FILES
+    //=============================================================================
 
     /// <summary>
     /// Opens a binary file as a read-only file stream. On error, prints a message and exits.
@@ -73,6 +81,10 @@ public class Util {
         return null;  // for the compiler
     }
     
+    //=============================================================================
+    //             COMMUNICATING WITH THE ARDUINO
+    //=============================================================================
+    
     /// <summary>
     /// Sends a command message to the Arduino, and reads its response. If the Arduino acknowledges, then
     /// this returns. Retries operations on some failures. If too many retries occur, or if an unrecoverable error
@@ -99,7 +111,7 @@ public class Util {
                     } else if (response == Arduino.NAK_BYTE) {
                         Console.WriteLine("While waiting for Arduino to acknowledge " + command + " command, " +
                                           "got a NAK with message:");
-                        arduino.GetAndPrintNAKMessage();
+                        arduino.GetAndPrintNakMessage();
                         // goes back to the top of the loop to retry
                     } else {
                         PrintAndExitFlushLogs("While waiting for Arduino to acknowledge " + command +
@@ -140,7 +152,7 @@ public class Util {
             } else if (response == Arduino.NAK_BYTE) {
                 Console.WriteLine("While waiting for Arduino to confirm that " + operation + " is complete, " +
                                   "got a NAK with message:");
-                arduino.GetAndPrintNAKMessage();
+                arduino.GetAndPrintNakMessage();
                 Exit(1, arduino);
             } else {
                 PrintAndExitFlushLogs("While waiting for Arduino to confirm that " + operation + 

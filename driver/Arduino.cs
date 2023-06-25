@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 
 /// <summary> Class which subclasses SerialPort. Adds utility functions and wraps some base calls with logging. </summary>
-class Arduino : SerialPort {
+internal class Arduino : SerialPort {
     //=============================================================================
     //             CONSTANTS
     //=============================================================================
@@ -93,14 +93,14 @@ class Arduino : SerialPort {
     }
     
     /// <summary> Writes an ACK byte to the Arduino. </summary>
-    internal void ACK() {
+    internal void Ack() {
         byte[] toSend = new byte[1];
         toSend[0] = ACK_BYTE;
         Write(toSend, 0, toSend.Length);
     }
 
     /// <summary> Writes a NAK byte to the Arduino. </summary>
-    internal void NAK() {
+    internal void Nak() {
         byte[] toSend = new byte[1];
         toSend[0] = NAK_BYTE;
         Write(toSend, 0, toSend.Length);
@@ -123,11 +123,11 @@ class Arduino : SerialPort {
     /// you probably have seen the NAK byte yourself, so this should fit in to the normal flow of communication with
     /// the Arduino.
     /// </summary>
-    internal void GetAndPrintNAKMessage() {
+    internal void GetAndPrintNakMessage() {
         List<byte> bytesList = new List<byte>();
         while (true) {
             byte b = (byte)ReadByte();
-            if (b == 0x00 || bytesList.Count() > MAX_NAK_MESSAGE_LENGTH) break;
+            if (b == 0x00 || bytesList.Count > MAX_NAK_MESSAGE_LENGTH) break;
             bytesList.Add(b);
         }
 

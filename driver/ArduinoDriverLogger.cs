@@ -6,7 +6,7 @@ using System.Text;
 /// <summary> Class which logs incoming/outgoing communication with the Arduino. Keeps track of transmissions, and
 /// writes them to a log file in a human-readable format. The best way to see the format of log files is to
 /// just run a program that communicates with the Arduino, and observe the result.</summary>
-public class ArduinoDriverLogger {
+internal class ArduinoDriverLogger {
     //=============================================================================
     //             CONSTANTS
     //=============================================================================
@@ -52,7 +52,7 @@ public class ArduinoDriverLogger {
     /// </summary>
     /// <param name="b">The byte.</param>
     /// <returns>Whether that byte, interpreted as ASCII, is a printable character.</returns>
-    private bool isPrintableASCII(byte b) {
+    private static bool IsPrintableAscii(byte b) {
         return !(b < 0x20 || b == 0x7F);
     }
     
@@ -62,7 +62,7 @@ public class ArduinoDriverLogger {
     /// <param name="b">The byte to write to the log file.</param>
     private void WriteByte(byte b) {
         _logfile.Write("0x");
-        string hexRepresentation = BitConverter.ToString(new byte[] { b });
+        string hexRepresentation = BitConverter.ToString(new[] { b });
         _logfile.Write(hexRepresentation);
         _logfile.Write(" ");
     }
@@ -131,11 +131,7 @@ public class ArduinoDriverLogger {
             _logfile.Write(" ");
         }
         _logfile.Write("    |    ");
-        if (!exiting) {
-            _logfile.Write("Discarded:\n");
-        } else {
-            _logfile.Write("Discarded on exit:\n");
-        }
+        _logfile.Write(exiting ? "Discarded on exit:\n" : "Discarded:\n");
         foreach (byte b in bs) {
             LogReceive(b);
         }
@@ -166,8 +162,8 @@ public class ArduinoDriverLogger {
         }
         _logfile.Write("       ");
         foreach (byte b in _sendBuffer) {
-            if (isPrintableASCII(b)) {
-                string bAsChar = Encoding.ASCII.GetString(new byte[] { b });
+            if (IsPrintableAscii(b)) {
+                string bAsChar = Encoding.ASCII.GetString(new[] { b });
                 _logfile.Write(bAsChar);
             } else {
                 _logfile.Write(".");
@@ -200,8 +196,8 @@ public class ArduinoDriverLogger {
         }
         _logfile.Write("       ");
         foreach (byte b in _receiveBuffer) {
-            if (isPrintableASCII(b)) {
-                string bAsChar = Encoding.ASCII.GetString(new byte[] { b });
+            if (IsPrintableAscii(b)) {
+                string bAsChar = Encoding.ASCII.GetString(new[] { b });
                 _logfile.Write(bAsChar);
             } else {
                 _logfile.Write(".");
@@ -214,7 +210,7 @@ public class ArduinoDriverLogger {
         _receiveBuffer.Clear();
     }
     
-    /// <summary> Flushes any non-empty buffers (either the send or recieve buffer, as at most one is non-empty). </summary>
+    /// <summary> Flushes any non-empty buffers (either the send or receive buffer, as at most one is non-empty). </summary>
     internal void Flush() {
         // At most one will occur, so order doesn't matter
         if (_receiveBuffer.Count > 0) FlushReceive();
