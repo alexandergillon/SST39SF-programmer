@@ -14,6 +14,9 @@
 
 #define MAX_NAK_MESSAGE_LENGTH 256
 
+#define MAX_COMMAND_LENGTH ((uint16_t)32)  // includes null terminator
+const uint8_t SECTOR_INDEX_LENGTH_BYTES = 2;
+
 //=============================================================================
 //             UTILITIES
 //=============================================================================
@@ -53,6 +56,14 @@ void setLEDStatus(LEDStatus status);
 //=============================================================================
 //             DRIVER COMMUNICATION FUNCTIONS
 //=============================================================================
+
+/**
+ * @brief Reads a byte of input from serial (with Serial.read()). Unlike Serial.read(), this function
+ * is blocking and waits until a byte of input is available.
+ * 
+ * @return the byte that was read
+ */
+byte blockingSerialRead();
 
 /** @brief Sends an ACK byte to the driver. This is the ASCII byte 0x06. */
 void sendACK();

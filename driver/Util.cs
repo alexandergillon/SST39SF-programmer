@@ -72,4 +72,86 @@ public class Util {
         
         return null;  // for the compiler
     }
+    
+    /// <summary>
+    /// Sends a command message to the Arduino, and reads its response. If the Arduino acknowledges, then
+    /// this returns. Retries operations on some failures. If too many retries occur, or if an unrecoverable error
+    /// occurs, prints a message and exits.
+    /// </summary>
+    /// <param name="arduino">A serial port connected to the Arduino.</param>
+    /// <param name="command">The command to send to the Arduino.</param>
+    internal static void SendCommandMessage(Arduino arduino, string command) {
+        arduino.PushTimeoutStack();
+        arduino.ReadTimeout = ArduinoDriver.NORMAL_TIMEOUT;
+        WriteLineVerbose("Sending " + command + " to Arduino...");
+        try {
+            for (int i = 0; i < ArduinoDriver.NUM_RETRIES; i++) {
+                if (i != 0) Console.WriteLine("Retrying...");
+                arduino.WriteNullTerminated(command);
+
+                try {
+                    byte response = (byte)arduino.ReadByte();
+
+                    if (response == Arduino.ACK_BYTE) {
+                        // got our ACK: we are done
+                        WriteLineVerbose(command + " acknowledged.");
+                        return;
+                    } else if (response == Arduino.NAK_BYTE) {
+                        Console.WriteLine("While waiting for Arduino to acknowledge " + command + " command, " +
+                                          "got a NAK with message:");
+                        arduino.GetAndPrintNAKMessage();
+                        // goes back to the top of the loop to retry
+                    } else {
+                        PrintAndExitFlushLogs("While waiting for Arduino to acknowledge " + command +
+                                          " command, got an unexpected response byte 0x" + 
+                                          BitConverter.ToString(new[] { response }) + ". Exiting.", arduino);
+                    }
+                } catch (TimeoutException) {
+                    PrintAndExitFlushLogs("Timed out (>" + arduino.ReadTimeout + "ms) while waiting " +
+                                      "for Arduino to acknowledge " + command + " command.", arduino);
+                }
+            }
+            
+            // If we get out of the loop, we didn't succeed after the maximum number of tries
+            PrintAndExitFlushLogs("Maximum number of retries (" + ArduinoDriver.NUM_RETRIES + ") reached. Exiting.", arduino);
+        } finally {
+            arduino.PopTimeoutStack();
+        }
+    }
+    
+    /// <summary>
+    /// Waits for an ACK byte from the Arduino, at the end of an operation (e.g. programming a sector, erasing the
+    /// chip). If we get one, this function returns. Otherwise, prints an error message and exits.
+    /// </summary>
+    /// <param name="arduino">A serial port connected to the Arduino.</param>
+    /// <param name="operation">A string representation of the operation that is waiting for acknowledgement,
+    /// for console output to the user.</param>
+    /// <param name="extendedTimeout">Whether to use an extended timeout, or a normal timeout.</param>
+    internal static void WaitForAck(Arduino arduino, string operation, bool extendedTimeout) {
+        arduino.PushTimeoutStack();
+        arduino.ReadTimeout = extendedTimeout ? ArduinoDriver.EXTENDED_TIMEOUT : ArduinoDriver.NORMAL_TIMEOUT;
+
+        try {
+            byte response = (byte)arduino.ReadByte();
+
+            if (response == Arduino.ACK_BYTE) {
+                WriteLineVerbose("Received confirmation from Arduino that " + operation + " operation " +
+                                      "is complete.");
+            } else if (response == Arduino.NAK_BYTE) {
+                Console.WriteLine("While waiting for Arduino to confirm that " + operation + " is complete, " +
+                                  "got a NAK with message:");
+                arduino.GetAndPrintNAKMessage();
+                Exit(1, arduino);
+            } else {
+                PrintAndExitFlushLogs("While waiting for Arduino to confirm that " + operation + 
+                                      " is complete, got an unexpected response byte 0x" +
+                                           BitConverter.ToString(new[] { response }) + ". Exiting.", arduino);
+            }
+        } catch (TimeoutException) {
+            PrintAndExitFlushLogs("Timed out (>" + arduino.ReadTimeout + "ms) while waiting " +
+                                       "for Arduino to confirm that " + operation + " is complete.", arduino);
+        } finally {
+            arduino.PopTimeoutStack();
+        }
+    }
 }

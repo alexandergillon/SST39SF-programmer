@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 
 /// <summary> Class which logs incoming/outgoing communication with the Arduino. Keeps track of transmissions, and

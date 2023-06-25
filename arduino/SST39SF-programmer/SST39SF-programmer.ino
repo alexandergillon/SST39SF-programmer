@@ -22,7 +22,8 @@ volatile int infinite_loop_int;  // To ensure the compiler doesn't optimize our 
 void checkForDebugMode() {
     pinMode(DEBUG_MODE_PIN, INPUT_PULLUP);
     if (digitalRead(DEBUG_MODE_PIN) == LOW) {
-        Serial.begin(SERIAL_BAUD_RATE);
+        digitalWrite(WAITING_FOR_COMMUNICATION_LED, HIGH);
+        digitalWrite(WORKING_LED, HIGH);
         const int bytes_per_line = 16;
         setDataPinsIn();
         int newline_counter = bytes_per_line;  // so that we print the initial memory address '0x0'
@@ -40,6 +41,7 @@ void checkForDebugMode() {
             newline_counter++;
         }
         Serial.print("\n");
+        setLEDStatus(FINISHED);
         while (true) {
             infinite_loop_int = 0;  // so that this loop is not optimized away
         }
@@ -54,10 +56,13 @@ void setup() {
     setupControlPins();
     setupAddressPins();
     setDataPinsIn();
+    setupLEDs();
+
+    Serial.begin(SERIAL_BAUD_RATE);
+    delay(10);
 
     checkForDebugMode();
 
-    setupLEDs();
     connectToDriver();
     setLEDStatus(WORKING);
     arduinoState = WAITING_FOR_COMMAND;
@@ -65,66 +70,58 @@ void setup() {
 
 void loop() {
     if (Serial.available() > 0) {
-        byte inputByte = (byte)Serial.read();
-        processByte(inputByte);
+        processSerial();
     }
 }
 
-/**
- * @brief Processes a byte of input from the driver.
- * 
- * @param b the byte of input to process
- */
-static void processByte(byte b) {
+/** @brief Processes serial input from the driver. */
+static void processSerial() {
     switch (arduinoState) {
         case WAITING_FOR_COMMAND:
-            processIncomingCommand(b);
+            processIncomingCommand();
             return;
         case BEGIN_PROGRAM_SECTOR:
         case PROGRAM_SECTOR_GOT_INDEX:
         case PROGRAM_SECTOR_INDEX_CONFIRMED:
         case PROGRAM_SECTOR_GOT_DATA:
-            processByteProgramSector(b);
+            processSerialProgramSector();
             return;
         case BEGIN_ERASE_CHIP:
-            processByteEraseChip(b);
+            processSerialEraseChip();
             return;
     }
 }
 
 //=============================================================================
-//  Fuctions to process input while waiting for a command
+//             WAITING FOR A COMMAND
 //=============================================================================
 
-const uint16_t commandBufferSize = 32;
-static byte commandBuffer[commandBufferSize];
-static uint16_t commandBufferIndex = 0;      
-
 /**
- * @brief Processes a byte of serial input while the Arduino is waiting for a command.
+ * @brief Processes serial input while the Arduino is waiting for a command.
  * This means that the Arduino is in the WAITING_FOR_COMMAND state. Behavior is unspecified
  * if the Arduino is in any other state.
  * 
- * If the Arduino receives the last byte of a command (which will be a null byte), checks
- * which command was sent and changes state accordingly (failing if the command is not valid).
- * If the Arduino receives too many bytes without a null byte, sends a NAK message to the driver.
- * 
- * @param b the byte of input to process
+ * If the Arduino receives a valid command, changes state accordingly. Sends a NAK message
+ * if the command is not valid, or if the Arduino receives MAX_COMMAND_LENGTH without a null byte.
  */
-void processIncomingCommand(byte b) {
-    if (b != (byte)'\0') {
-        commandBuffer[commandBufferIndex] = b;
-        commandBufferIndex++;
-        if (commandBufferIndex >= commandBufferSize) {
-            String bufferSize = String(commandBufferSize);
-            sendNAKMessage("While waiting for a command, received " + bufferSize + " (size of the command buffer) bytes without receiving a null terminator.");
-            commandBufferIndex = 0;  // clear the buffer
+void processIncomingCommand() {
+    byte commandBuffer[MAX_COMMAND_LENGTH];
+    uint16_t commandBufferIndex = 0;
+
+    while (commandBufferIndex < MAX_COMMAND_LENGTH) {
+        byte b = blockingSerialRead();
+
+        if (b != (byte)'\0') {
+            commandBuffer[commandBufferIndex] = b;
+            commandBufferIndex++;
+        } else {
+            commandBuffer[commandBufferIndex] = b;
+            checkForCommand((char*)commandBuffer);
+            return;
         }
-    } else {
-        commandBuffer[commandBufferIndex] = b;
-        checkForCommand((char*)commandBuffer);
-        commandBufferIndex = 0;  // clear the buffer
     }
+    // if we exited the loop, we received MAX_COMMAND_LENGTH bytes with no null byte
+    sendNAKMessage("While waiting for a command, received " + String(MAX_COMMAND_LENGTH) + " (maximum length of a command) bytes without receiving a null terminator.");
 }
 
 /**
@@ -140,19 +137,35 @@ void checkForCommand(char *command) {
         sendACK();
     } else if (strcmp(command, "ERASECHIP") == 0) {
         arduinoState = BEGIN_ERASE_CHIP;
-        // todo
+        sendACK();
+        Serial.write("CONFIRM?");
+        Serial.write((byte)'\0');
     } else {
         String badCommand = String(command);
         sendNAKMessage("Received unrecognized command: " + badCommand);
     }
 }
 
-// todo
-void processByteEraseChip(byte b) {
-    switch (arduinoState) {
-        case BEGIN_ERASE_CHIP:
-            void(0);
-        default:
-            void(0);
+//=============================================================================
+//             ERASING THE CHIP
+//=============================================================================
+
+/**
+ * @brief Processes serial input while the Arduino is erasing the chip. This has
+ * the effect of erasing the chip if the driver confirms the erase operation, or
+ * returning to WAITING_FOR_COMMAND otherwise.
+ */
+void processSerialEraseChip() {
+    byte b = blockingSerialRead();
+    if (b == ACK) {
+        setDataPinsOut();
+        eraseChip();
+        sendACK();
+        arduinoState = WAITING_FOR_COMMAND;
+    } else if (b == NAK) {
+        arduinoState = WAITING_FOR_COMMAND;
+    } else {
+        sendNAKMessage("While erasing chip and waiting for ACK/NAK on 'CONFIRM?' message, got byte 0x" + byteToHex(b) + " instead.");
+        arduinoState = WAITING_FOR_COMMAND;
     }
 }

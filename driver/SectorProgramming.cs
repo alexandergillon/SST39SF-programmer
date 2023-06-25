@@ -5,55 +5,6 @@ using System.Linq;
 /// <summary> Class which handles programming a sector of the SST39SF via the Arduino. </summary>
 public class SectorProgramming {
     //=============================================================================
-    //             INITIAL PROGRAMSECTOR MESSAGE
-    //=============================================================================
-    
-    /// <summary>
-    /// Sends the 'PROGRAMSECTOR\0' message to the Arduino, and reads its response. If the Arduino acknowledges, then
-    /// this returns. Retries operations on some failures. If too many retries occur, or if an unrecoverable error
-    /// occurs, prints a message and exits.
-    /// </summary>
-    /// <param name="arduino">A serial port connected to the Arduino.</param>
-    private static void SendProgramSectorMessage(Arduino arduino) {
-        arduino.PushTimeoutStack();
-        arduino.ReadTimeout = ArduinoDriver.NORMAL_TIMEOUT;
-        Util.WriteLineVerbose("Sending PROGRAMSECTOR to Arduino...");
-        try {
-            for (int i = 0; i < ArduinoDriver.NUM_RETRIES; i++) {
-                if (i != 0) Console.WriteLine("Retrying...");
-                arduino.WriteNullTerminated("PROGRAMSECTOR");
-
-                try {
-                    byte response = (byte)arduino.ReadByte();
-
-                    if (response == Arduino.ACK_BYTE) {
-                        // got our ACK: we are done
-                        Util.WriteLineVerbose("PROGRAMSECTOR acknowledged.");
-                        return;
-                    } else if (response == Arduino.NAK_BYTE) {
-                        Console.WriteLine("While waiting for Arduino to acknowledge PROGRAMSECTOR command, " +
-                                          "got a NAK with message:");
-                        arduino.GetAndPrintNAKMessage();
-                        // goes back to the top of the loop to retry
-                    } else {
-                        Util.PrintAndExitFlushLogs("While waiting for Arduino to acknowledge PROGRAMSECTOR " +
-                                          "command, got an unexpected response byte 0x" + 
-                                          BitConverter.ToString(new byte[] { response }) + ". Exiting.", arduino);
-                    }
-                } catch (TimeoutException) {
-                    Util.PrintAndExitFlushLogs("Timed out (>" + arduino.ReadTimeout + "ms) while waiting " +
-                                      "for Arduino to acknowledge PROGRAMSECTOR command.", arduino);
-                }
-            }
-            
-            // If we get out of the loop, we didn't succeed after the maximum number of tries
-            Util.PrintAndExitFlushLogs("Maximum number of retries (" + ArduinoDriver.NUM_RETRIES + ") reached. Exiting.", arduino);
-        } finally {
-            arduino.PopTimeoutStack();
-        }
-    }
-    
-    //=============================================================================
     //             SENDING AND CONFIRMING SECTOR INDEX
     //=============================================================================
 
@@ -207,46 +158,7 @@ public class SectorProgramming {
             arduino.PopTimeoutStack();
         }
     }
-    
-    //=============================================================================
-    //             FINAL ACKNOWLEDGEMENT
-    //=============================================================================
 
-    /// <summary>
-    /// Waits for an ACK byte from the Arduino. If we get one, this function returns. Otherwise, prints an error
-    /// message and exits.
-    /// </summary>
-    /// <param name="arduino">A serial port connected to the Arduino.</param>
-    private static void WaitForAck(Arduino arduino) {
-        arduino.PushTimeoutStack();
-        arduino.ReadTimeout = ArduinoDriver.EXTENDED_TIMEOUT;  // Arduino needs time to program the sector
-
-        try {
-            byte response = (byte)arduino.ReadByte();
-
-            if (response == Arduino.ACK_BYTE) {
-                // got our ACK: we are done programming the sector
-                Util.WriteLineVerbose("Received confirmation from Arduino that sector programming operation " +
-                                      "is complete.");
-                return;
-            } else if (response == Arduino.NAK_BYTE) {
-                Console.WriteLine("While waiting for Arduino to confirm that sector programming is complete, " +
-                                  "got a NAK with message:");
-                arduino.GetAndPrintNAKMessage();
-                Util.Exit(1, arduino);
-            } else {
-                Util.PrintAndExitFlushLogs("While waiting for Arduino to confirm that sector programming is " +
-                                  "complete, got an unexpected response byte 0x" +
-                                  BitConverter.ToString(new byte[] { response }) + ". Exiting.", arduino);
-            }
-        } catch (TimeoutException) {
-            Util.PrintAndExitFlushLogs("Timed out (>" + arduino.ReadTimeout + "ms) while waiting " +
-                              "for Arduino to confirm that sector programming is complete.", arduino);
-        } finally {
-            arduino.PopTimeoutStack();
-        }
-    }
-    
     //=============================================================================
     //             MAIN SECTOR PROGRAMMING METHOD
     //=============================================================================
@@ -269,9 +181,9 @@ public class SectorProgramming {
                               "at the end of file.", arduino);
         }
 
-        SendProgramSectorMessage(arduino);
+        Util.SendCommandMessage(arduino, "PROGRAMSECTOR");
         SendAndConfirmSectorIndex(arduino, sectorIndex);
         SendAndConfirmSectorData(arduino, sectorData);
-        WaitForAck(arduino);
+        Util.WaitForAck(arduino, "sector programming", true);
     }
 }

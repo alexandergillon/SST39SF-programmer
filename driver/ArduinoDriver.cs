@@ -2,7 +2,6 @@
 using System.IO;
 using System.IO.Ports;
 using System.Collections.Generic;
-using System.Security;
 using System.Threading;
 
 // C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe Arduino.cs ArduinoDriver.cs ArduinoDriverLogger.cs Util.cs SectorProgramming.cs
@@ -206,9 +205,8 @@ class ArduinoDriver {
         List<byte> bytesBeforeMessageStart = new List<byte>(Arduino.ARDUINO_WAIT_MESSAGE.Length);
         List<byte> messageBytes = new List<byte>(Arduino.ARDUINO_WAIT_MESSAGE.Length);
 
-        /* In this loop we process what the Arduino is expecting, one byte at a time. We are looking for the string
-         * 'WAITING\0' (\0 is a null byte), so we skip bytes until we see our first W. Then we read the expected
-         * number of bytes and check whether the sent message is what we expected.
+        /*  are looking for the string 'WAITING\0' (\0 is a null byte), so we skip bytes until we see our first W.
+         * Then we read the expected number of bytes and check whether the sent message is what we expected.
          *
          * We still save bytes that came before this first W, however. This is because that W may never come, if the
          * Arduino is not in the right state. If that first W never comes (i.e. too many other bytes occur before
@@ -286,10 +284,6 @@ class ArduinoDriver {
         }
     }
 
-    private static void EraseChip(Arduino arduino) {
-        // todo
-    }
-    
     //=============================================================================
     //             MAIN
     //=============================================================================
@@ -310,7 +304,7 @@ class ArduinoDriver {
                 ArbitraryProgramming.ExecuteInstructions(arduino, path);
                 break;
             case OperationMode.ERASE_CHIP:
-                EraseChip(arduino);
+                ChipErase.EraseChip(arduino);
                 break;
             default:
                 Util.PrintAndExitFlushLogs("Internal error: unrecognized OperationMode during switch/case.", arduino);

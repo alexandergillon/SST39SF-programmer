@@ -2,17 +2,17 @@
 #define SST39SF_PROGRAMMER_PROGRAM_SECTOR_H
 
 /**
- * @brief Processes a byte of serial input while the Arduino is programming a sector.
- * This means that the Arduino is in one of the BEGIN_PROGRAM_SECTOR, PROGRAM_SECTOR_GOT_INDEX,
- * PROGRAM_SECTOR_INDEX_CONFIRMED or PROGRAM_SECTOR_GOT_DATA states. Calling this function when
- * the Arduino is in any other state will cause the Arduino to abort.
+ * @brief Processes serial input while the Arduino is programming a sector. This has the 
+ * effect of programming a sector if the correct communication sequence with the driver
+ * occurs (or, perhaps returning without programming a sector if an error occurs).
  * 
- * Usually, this function processes that one byte of input and returns. However, when receiving
- * the data to write into the sector, this function takes control of serial input in order to
- * ensure that no bytes are lost during the large amount of data transmission.
+ * The Arduino must be in one of the BEGIN_PROGRAM_SECTOR, PROGRAM_SECTOR_GOT_INDEX,
+ * PROGRAM_SECTOR_INDEX_CONFIRMED or PROGRAM_SECTOR_GOT_DATA states when calling this
+ * function. Calling this function when the Arduino is in any other state has unspecified 
+ * behavior.
  * 
- * @param b the byte of input to process
+ * There are no guarantees that this function will return in a specific timeframe.
  */
-void processByteProgramSector(byte b);
+void processSerialProgramSector();
 
 #endif  // SST39SF_PROGRAMMER_PROGRAM_SECTOR_H

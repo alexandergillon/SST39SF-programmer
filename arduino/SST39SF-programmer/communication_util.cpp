@@ -105,6 +105,12 @@ void setLEDStatus(LEDStatus status) {
 //=============================================================================
 
 // See header comment.
+byte blockingSerialRead() {
+    while (Serial.available() == 0);
+    return (byte)Serial.read();
+}
+
+// See header comment.
 void sendACK() {
     Serial.write(ACK);
 }
@@ -136,9 +142,6 @@ void sendNAKMessage(String errorMessage) {
 void connectToDriver() {
     setLEDStatus(WAITING_FOR_COMMUNICATION);
 
-    Serial.begin(SERIAL_BAUD_RATE);
-    delay(10);
-    
     while (true) {
         // We want to check for any messages that came in while we were sleeping, before we send
         // another broadcast.
