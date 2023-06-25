@@ -110,7 +110,7 @@ void setDataPinsOut() {
  * 
  * @param address the address to put on the address bus
  */
-void setAddressBus(uint32_t address) {
+static void setAddressBus(uint32_t address) {
     for (int i = 0; i < ADDRESS_BUS_LENGTH; i++) {
         digitalWrite(ADDR0 + i, bitRead(address, i));
     }
@@ -123,7 +123,7 @@ void setAddressBus(uint32_t address) {
  * 
  * @param data the data to put on the data bus
  */
-void setDataBus(byte data) {
+static void setDataBus(byte data) {
 #ifdef DEBUG
     checkDataPinsOut("setDataBus");
 #endif
@@ -140,7 +140,7 @@ void setDataBus(byte data) {
  * 
  * @return byte the data currently on the data bus
  */
-byte readDataBus() {
+static byte readDataBus() {
 #ifdef DEBUG
     checkDataPinsIn("readDataBus");
 #endif

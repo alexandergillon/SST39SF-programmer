@@ -14,37 +14,6 @@
 ArduinoState arduinoState;
 
 //=============================================================================
-//             DEBUGGING
-//=============================================================================
-
-void checkForDebugMode() {
-    pinMode(DEBUG_MODE_PIN, INPUT_PULLUP);
-    if (digitalRead(DEBUG_MODE_PIN) == LOW) {
-        digitalWrite(WAITING_FOR_COMMUNICATION_LED, HIGH);
-        digitalWrite(WORKING_LED, HIGH);
-        const int bytes_per_line = 16;
-        setDataPinsIn();
-        int newline_counter = bytes_per_line;  // so that we print the initial memory address '0x0'
-        for (uint32_t i = 0; i < SST_FLASH_SIZE; i++) {
-            if (newline_counter >= bytes_per_line) {
-                Serial.print("\n0x");
-                Serial.print(i, HEX);
-                Serial.print(" ");
-                newline_counter = 0;
-            }
-            byte b = readByte(i);
-            Serial.print("0x");
-            Serial.print(b, HEX);
-            Serial.print(" ");
-            newline_counter++;
-        }
-        Serial.print("\n");
-        setLEDStatus(FINISHED);
-        while (true) delay(1000000);
-    }
-}
-
-//=============================================================================
 //             SETUP AND LOOP
 //=============================================================================
 
@@ -91,6 +60,42 @@ static void processSerial() {
 }
 
 //=============================================================================
+//             DEBUGGING
+//=============================================================================
+
+/**
+ * @brief Checks for debug mode, at startup. Debug mode is activated if DEBUG_MODE_PIN
+ * is tied low on startup, and prints out the entire contents of memory to serial
+ * before going into an infinite loop.
+ */
+static void checkForDebugMode() {
+    pinMode(DEBUG_MODE_PIN, INPUT_PULLUP);
+    if (digitalRead(DEBUG_MODE_PIN) == LOW) {
+        digitalWrite(WAITING_FOR_COMMUNICATION_LED, HIGH);
+        digitalWrite(WORKING_LED, HIGH);
+        const int bytes_per_line = 16;
+        setDataPinsIn();
+        int newline_counter = bytes_per_line;  // so that we print the initial memory address '0x0'
+        for (uint32_t i = 0; i < SST_FLASH_SIZE; i++) {
+            if (newline_counter >= bytes_per_line) {
+                Serial.print("\n0x");
+                Serial.print(i, HEX);
+                Serial.print(" ");
+                newline_counter = 0;
+            }
+            byte b = readByte(i);
+            Serial.print("0x");
+            Serial.print(b, HEX);
+            Serial.print(" ");
+            newline_counter++;
+        }
+        Serial.print("\n");
+        setLEDStatus(FINISHED);
+        while (true) delay(1000000);
+    }
+}
+
+//=============================================================================
 //             WAITING FOR A COMMAND
 //=============================================================================
 
@@ -102,7 +107,7 @@ static void processSerial() {
  * If the Arduino receives a valid command, changes state accordingly. Sends a NAK message
  * if the command is not valid, or if the Arduino receives MAX_COMMAND_LENGTH without a null byte.
  */
-void processIncomingCommand() {
+static void processIncomingCommand() {
     byte commandBuffer[MAX_COMMAND_LENGTH];
     uint16_t commandBufferIndex = 0;
 
@@ -128,7 +133,7 @@ void processIncomingCommand() {
  * 
  * @param command the command that was issued, as a null-terminated string
  */
-void checkForCommand(char *command) {
+static void checkForCommand(char *command) {
     // arduinoState is WAITING_FOR_COMMAND at the start of this function
     if (strcmp(command, PROGRAM_SECTOR_MESSAGE) == 0) {
         arduinoState = BEGIN_PROGRAM_SECTOR;
@@ -158,7 +163,7 @@ void checkForCommand(char *command) {
  * the effect of erasing the chip if the driver confirms the erase operation, or
  * returning to WAITING_FOR_COMMAND otherwise.
  */
-void processSerialEraseChip() {
+static void processSerialEraseChip() {
     byte b = blockingSerialRead();
     if (b == ACK) {
         setDataPinsOut();

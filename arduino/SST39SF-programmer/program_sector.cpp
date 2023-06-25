@@ -13,7 +13,7 @@
  * PROGRAM_SECTOR_GOT_INDEX when this function returns, then the sector index has been
  * written to this location.
  */
-void getAndValidateSectorIndex(uint16_t *sectorIndex) {
+static void getAndValidateSectorIndex(uint16_t *sectorIndex) {
     byte sectorIndexBytes[SECTOR_INDEX_LENGTH_BYTES];
 
     for (uint8_t i = 0; i < SECTOR_INDEX_LENGTH_BYTES; i++) {
@@ -42,7 +42,7 @@ void getAndValidateSectorIndex(uint16_t *sectorIndex) {
  * else (which is unexpected), sends a NAK message and transitions to WAITING_FOR_COMMAND.
  * 
  */
-void confirmSectorIndex() {
+static void confirmSectorIndex() {
     byte b = blockingSerialRead();
     if (b == ACK) {
         arduinoState = PROGRAM_SECTOR_INDEX_CONFIRMED;
@@ -60,7 +60,7 @@ void confirmSectorIndex() {
  * 
  * @param sectorData Buffer to write the data into. Must be at least SST_SECTOR_SIZE large.
  */
-void receiveSectorData(byte *sectorData) {
+static void receiveSectorData(byte *sectorData) {
     for (uint16_t i = 0; i < SST_SECTOR_SIZE; i++) {
         sectorData[i] = blockingSerialRead();
     }
@@ -79,7 +79,7 @@ void receiveSectorData(byte *sectorData) {
  * 
  * @return whether the sector data we echoed was acknowledged
  */
-bool confirmSectorData() {
+static bool confirmSectorData() {
     byte b = blockingSerialRead();
     if (b == ACK) {
         return true;
@@ -101,7 +101,7 @@ bool confirmSectorData() {
  * @param sectorIndex the index of the sector to program
  * @param sectorData the data to program into that sector
  */
-void programSector(uint16_t sectorIndex, byte *sectorData) {
+static void programSector(uint16_t sectorIndex, byte *sectorData) {
     int32_t startAddress = ((int32_t)sectorIndex) * SST_SECTOR_SIZE;  // cast needed to avoid truncation
 
     setDataPinsOut();
