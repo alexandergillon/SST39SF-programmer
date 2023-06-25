@@ -54,7 +54,8 @@ internal static class ArduinoDriver {
                 Util.PrintAndExitFlushLogs("Internal error: unrecognized OperationMode during switch/case.", arduino);
                 break;
         }
-        
+
+        Util.SendCommandMessage(arduino, Arduino.DONE_MESSAGE);
         arduino.CleanupForExit();
         return 0;
     }

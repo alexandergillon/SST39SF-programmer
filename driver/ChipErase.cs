@@ -3,13 +3,6 @@
 /// <summary> Class which handles erasing the chip. </summary>
 internal static class ChipErase {
     //=============================================================================
-    //             CONSTANTS
-    //=============================================================================
-    
-    private const string ERASE_CHIP_MESSAGE = "ERASECHIP";
-    private const string CONFIRM_MESSAGE = "CONFIRM?\0";
-    
-    //=============================================================================
     //             CORE FUNCTION - CALLED BY OTHER CLASSES
     //=============================================================================
     
@@ -18,7 +11,7 @@ internal static class ChipErase {
     /// </summary>
     /// <param name="arduino">A serial port connected to the Arduino.</param>
     internal static void EraseChip(Arduino arduino) {
-        Util.SendCommandMessage(arduino, ERASE_CHIP_MESSAGE);
+        Util.SendCommandMessage(arduino, Arduino.ERASE_CHIP_MESSAGE);
         ReceiveConfirmMessage(arduino);
         ConfirmWithUser(arduino);
         Util.WaitForAck(arduino, "chip erase", false);
@@ -34,9 +27,9 @@ internal static class ChipErase {
     /// </summary>
     /// <param name="arduino">A serial port connected to the Arduino.</param>
     private static void ReceiveConfirmMessage(Arduino arduino) {
-        byte[] responseBytes = new byte[CONFIRM_MESSAGE.Length];
+        byte[] responseBytes = new byte[Arduino.CONFIRM_ERASE_MESSAGE.Length];
         try {
-            for (int i = 0; i < CONFIRM_MESSAGE.Length; i++) {
+            for (int i = 0; i < Arduino.CONFIRM_ERASE_MESSAGE.Length; i++) {
                 responseBytes[i] = (byte)arduino.ReadByte();
             }
         } catch (TimeoutException) {
@@ -45,7 +38,7 @@ internal static class ChipErase {
         }
         // if we get here, we have filled up the response buffer
         string response = System.Text.Encoding.ASCII.GetString(responseBytes);
-        if (!response.Equals(CONFIRM_MESSAGE)) {
+        if (!response.Equals(Arduino.CONFIRM_ERASE_MESSAGE)) {
             Util.PrintAndExitFlushLogs("While waiting for Arduino to send 'CONFIRM?' message, got " +
                                        "unexpected message " + response + " instead.", arduino);
         }

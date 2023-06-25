@@ -5,12 +5,6 @@ using System.Linq;
 /// <summary> Class which handles programming a sector of the SST39SF via the Arduino. </summary>
 internal static class SectorProgramming {
     //=============================================================================
-    //             CONSTANTS
-    //=============================================================================
-
-    private const string PROGRAM_SECTOR_MESSAGE = "PROGRAMSECTOR";
-    
-    //=============================================================================
     //             CORE FUNCTION - CALLED BY OTHER CLASSES
     //=============================================================================
 
@@ -32,7 +26,7 @@ internal static class SectorProgramming {
                                        "at the end of file.", arduino);
         }
 
-        Util.SendCommandMessage(arduino, PROGRAM_SECTOR_MESSAGE);
+        Util.SendCommandMessage(arduino, Arduino.PROGRAM_SECTOR_MESSAGE);
         SendAndConfirmSectorIndex(arduino, sectorIndex);
         SendAndConfirmSectorData(arduino, sectorData);
         Util.WaitForAck(arduino, "sector programming", true);

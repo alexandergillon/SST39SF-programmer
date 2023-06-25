@@ -13,9 +13,13 @@
 #define NAK ((byte)0x15)
 
 #define MAX_NAK_MESSAGE_LENGTH 256
-
 #define MAX_COMMAND_LENGTH ((uint16_t)32)  // includes null terminator
+
 const uint8_t SECTOR_INDEX_LENGTH_BYTES = 2;
+
+const char PROGRAM_SECTOR_MESSAGE[] = "PROGRAMSECTOR";
+const char ERASE_CHIP_MESSAGE[] = "ERASECHIP";
+const char DONE_MESSAGE[] = "DONE";
 
 //=============================================================================
 //             UTILITIES

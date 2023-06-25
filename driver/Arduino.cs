@@ -11,31 +11,50 @@ internal class Arduino : SerialPort {
     //             CONSTANTS
     //=============================================================================
     
-    // SST39SF chip constants
-        //===============================//
-        //     Chip          Flash Size  //     
-        //  SST39SF010         131072    //
-        //  SST39SF020         262144    //
-        //  SST39SF040         524288    //
-        //===============================//
-        internal const int SST_FLASH_SIZE = 262144;
-        internal const int SST_SECTOR_SIZE = 4096;  // the same for all chips
+    /***** SST39SF CHIP CONSTANTS *****/
+    
+    //===============================//
+    //     Chip          Flash Size  //     
+    //  SST39SF010         131072    //
+    //  SST39SF020         262144    //
+    //  SST39SF040         524288    //
+    //===============================//
+    internal const int SST_FLASH_SIZE = 262144;
+    internal const int SST_SECTOR_SIZE = 4096;  // the same for all chips
+    
+    
         
-    // Communication parameters
-        private const int BAUD_RATE = 115200;
-        internal const string ARDUINO_WAIT_MESSAGE = "WAITING\0";
-        
-        // default arduino serial communication is 8N1
-        private const int DATA_BITS = 8;
-        private const Parity PARITY = Parity.None;
-        private const StopBits STOP_BITS = StopBits.One;
-        
-        private const int MAX_NAK_MESSAGE_LENGTH = 256;
+    /***** COMMUNICATION PARAMETERS *****/
+    
+    private const int BAUD_RATE = 115200;
 
-    // Data constants
-        internal const byte NULL_BYTE = 0x00;
-        internal const byte ACK_BYTE = 0x06;
-        internal const byte NAK_BYTE = 0x15;
+    // Default arduino serial communication is 8N1
+    private const int DATA_BITS = 8;
+    private const Parity PARITY = Parity.None;
+    private const StopBits STOP_BITS = StopBits.One;
+    
+    private const int MAX_NAK_MESSAGE_LENGTH = 256;
+    
+    
+        
+    /***** MESSAGE LITERALS *****/
+    
+    // Messages the Arduino sends us
+    internal const string ARDUINO_WAIT_MESSAGE = "WAITING\0";
+    internal const string CONFIRM_ERASE_MESSAGE = "CONFIRM?\0";
+    
+    // Messages we send the Arduino
+    internal const string PROGRAM_SECTOR_MESSAGE = "PROGRAMSECTOR";
+    internal const string ERASE_CHIP_MESSAGE = "ERASECHIP";
+    internal const string DONE_MESSAGE = "DONE";
+    
+    
+
+    /***** DATA CONSTANTS *****/
+    
+    internal const byte NULL_BYTE = 0x00;
+    internal const byte ACK_BYTE = 0x06;
+    internal const byte NAK_BYTE = 0x15;
 
     //=============================================================================
     //             INSTANCE VARIABLES

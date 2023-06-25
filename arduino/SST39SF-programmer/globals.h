@@ -16,7 +16,9 @@ enum ArduinoState {
     PROGRAM_SECTOR_INDEX_CONFIRMED,
     PROGRAM_SECTOR_GOT_DATA,
 
-    BEGIN_ERASE_CHIP
+    BEGIN_ERASE_CHIP,
+
+    DONE
 };
 
 /** @brief Global variable that holds the current state of the Arduino. */

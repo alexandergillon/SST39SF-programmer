@@ -17,8 +17,6 @@ ArduinoState arduinoState;
 //             DEBUGGING
 //=============================================================================
 
-volatile int infinite_loop_int;  // To ensure the compiler doesn't optimize our infinite loop.
-                                 // Not sure if this is necessary on Arduino.
 void checkForDebugMode() {
     pinMode(DEBUG_MODE_PIN, INPUT_PULLUP);
     if (digitalRead(DEBUG_MODE_PIN) == LOW) {
@@ -42,9 +40,7 @@ void checkForDebugMode() {
         }
         Serial.print("\n");
         setLEDStatus(FINISHED);
-        while (true) {
-            infinite_loop_int = 0;  // so that this loop is not optimized away
-        }
+        while (true) delay(1000000);
     }
 }
 
@@ -89,6 +85,8 @@ static void processSerial() {
         case BEGIN_ERASE_CHIP:
             processSerialEraseChip();
             return;
+        case DONE:
+            while (true) delay(1000000);
     }
 }
 
@@ -132,14 +130,19 @@ void processIncomingCommand() {
  */
 void checkForCommand(char *command) {
     // arduinoState is WAITING_FOR_COMMAND at the start of this function
-    if (strcmp(command, "PROGRAMSECTOR") == 0) {
+    if (strcmp(command, PROGRAM_SECTOR_MESSAGE) == 0) {
         arduinoState = BEGIN_PROGRAM_SECTOR;
         sendACK();
-    } else if (strcmp(command, "ERASECHIP") == 0) {
+    } else if (strcmp(command, ERASE_CHIP_MESSAGE) == 0) {
         arduinoState = BEGIN_ERASE_CHIP;
         sendACK();
         Serial.write("CONFIRM?");
         Serial.write((byte)'\0');
+    } else if (strcmp(command, DONE_MESSAGE) == 0) {
+        arduinoState = DONE;
+        setLEDStatus(FINISHED);
+        sendACK();
+        while (true) delay(1000000);
     } else {
         String badCommand = String(command);
         sendNAKMessage("Received unrecognized command: " + badCommand);
