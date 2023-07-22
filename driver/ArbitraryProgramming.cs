@@ -19,14 +19,11 @@
  *   the chip. Otherwise, if we immediately wrote changes to the SST39SF chip, then some instructions may be
  *   overwritten (as programming a sector on the SST39SF erases it before writing).
  *
- *   HOWEVER: instructions may still overwrite each other, and this is not checked by the current implementation.
- *   Instructions are processed in the same order as in the instruction file. Consider the following instructions:
+ *   NOTE: overlapping instructions (i.e. instructions that would cause part of one binary file to be overwritten by
+ *   part of another) are forbidden by default. Supply the additional -o command line flag to allow overlapping
+ *   instructions.
  *
- *   0x1000 data1.bin
- *   0x0F00 data2.bin
- *
- *   If data2.bin is longer than 0x100 bytes (256 bytes), then the first instruction will be partially (or entirely)
- *   overwritten. Take caution when writing instruction files.
+ *   Take caution when writing overlapping instruction files.
  *
  *   -------------------------------------------------------------------------------------------------------------------
  *
@@ -54,6 +51,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security;
 using System.Text;
 
 /// <summary> Class which handles writes to arbitrary addresses on the SST39SF. Uses a special file format,
@@ -73,13 +71,15 @@ internal static class ArbitraryProgramming {
     /// </summary>
     /// <param name="arduino">A serial port connected to the Arduino.</param>
     /// <param name="path">Path to the instruction file.</param>
-    internal static void ExecuteInstructions(Arduino arduino, string path) {
+    /// <param name="overlapsEnabled">Whether overlapping binary files in the instruction file is allowed.</param>
+    internal static void ExecuteInstructions(Arduino arduino, string path, bool overlapsEnabled) {
         /* Maps the index of a sector that has been touched by the instructions to the data of that sector. This is
          * needed so that we can handle multiple instructions touching the same sector - if we immediately wrote
          * changes to the SST39SF chip, then some instructions may be overwritten (as programming a sector on the
          * SST39SF erases it before writing). This dictionary allows us to unify changes before writing the entire
          * modified sectors to the chip. */
         Dictionary<int, byte[]> sectorIndexToData = new Dictionary<int, byte[]>();
+        List<Tuple<int, string>> instructions = new List<Tuple<int, string>>();
 
         string instructionFilePath = path.Trim('"').Trim('\'');
         using (StreamReader instructionFile = OpenInstructionFile(instructionFilePath)) {
@@ -92,8 +92,16 @@ internal static class ArbitraryProgramming {
                 int address = ConvertAddress(instruction.Substring(0, firstSpaceIndex), instruction, instructionFilePath);
                 string binaryPath = instruction.Substring(firstSpaceIndex+1);
                 
-                ProcessInstruction(sectorIndexToData, address, binaryPath);
+                instructions.Add(new Tuple<int, string>(address, binaryPath));
             }
+        }
+        
+        CheckOverlap(instructions, overlapsEnabled);
+        
+        foreach (Tuple<int, string> instruction in instructions) {
+            int startingAddress = instruction.Item1;
+            string filePath = instruction.Item2;
+            ProcessInstruction(sectorIndexToData, startingAddress, filePath);
         }
         
         ProgramSectors(arduino, sectorIndexToData);
@@ -102,12 +110,98 @@ internal static class ArbitraryProgramming {
     }
     
     //=============================================================================
+    //             CHECKING FOR OVERLAPS IN INSTRUCTIONS
+    //=============================================================================
+    
+    /// <summary>
+    /// POCO class to record a 'file interval'. Essentially an interval in the memory of the SST39SF where that file
+    /// resides. This is used to check whether any files would overlap in memory if we were to execute all the
+    /// instructions.
+    /// </summary>
+    private class FileInterval {
+        public long StartingAddress { get; private set; }
+        public long EndingAddress { get; private set; }
+        public string FilePath { get; private set; }
+
+        public FileInterval(long startingAddress, long endingAddress, string filePath) {
+            StartingAddress = startingAddress;
+            EndingAddress = endingAddress;
+            FilePath = filePath;
+        }
+    }
+
+    /// <summary>
+    /// Checks for overlapping instructions in the arbitrary programming instruction file. If overlaps are enabled,
+    /// prints a warning on finding an overlap and continues. Otherwise, prints an error message and aborts.
+    ///
+    /// There is no guarantee that this function will print all overlaps. The only guarantee is that if an overlap
+    /// exists, this function will find it.
+    /// </summary>
+    /// <param name="instructions">The instructions in the instruction file, as pairs of starting address
+    /// and file paths.</param>
+    /// <param name="overlapsEnabled">Whether overlapping instructions are allowed.</param>
+    private static void CheckOverlap(List<Tuple<int, string>> instructions, bool overlapsEnabled) {
+        List<FileInterval> fileIntervals = new List<FileInterval>();
+        
+        foreach (Tuple<int, string> instruction in instructions) {
+            int startingAddress = instruction.Item1;
+            string filePath = instruction.Item2;
+            fileIntervals.Add(new FileInterval(startingAddress, startingAddress + FileLength(filePath), filePath));
+        }
+        
+        fileIntervals.Sort((fileInterval1, fileInterval2) => fileInterval1.StartingAddress.CompareTo(fileInterval2.StartingAddress));
+
+        for (int i = 0; i < fileIntervals.Count - 1; i++) {
+            FileInterval thisInterval = fileIntervals[i];
+            FileInterval nextInterval = fileIntervals[i + 1];
+            if (nextInterval.StartingAddress < thisInterval.EndingAddress) {
+                string message = String.Format("{0}: file {1} of length {2}, which starts at address {3} and " +
+                                               "ends at address {4} overlaps with file {5} of length {6}, which " +
+                                               "starts at address {7} and ends at address {8}.",
+                    overlapsEnabled ? "Warning" : "Error", thisInterval.FilePath, 
+                    thisInterval.EndingAddress - thisInterval.StartingAddress, thisInterval.StartingAddress, 
+                    thisInterval.EndingAddress, nextInterval.FilePath, 
+                    nextInterval.EndingAddress - nextInterval.StartingAddress, nextInterval.StartingAddress,
+                    nextInterval.EndingAddress);
+                if (overlapsEnabled) {
+                    Console.WriteLine(message);
+                } else {
+                    Util.PrintAndExit(message);   
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the length of a file, in bytes. On error, prints an error message and exits.
+    /// </summary>
+    /// <param name="path">Path to the file.</param>
+    /// <returns>The length of that file, in bytes.</returns>
+    private static long FileLength(string path) {
+        try {
+            return new FileInfo(path).Length;
+        } catch (ArgumentException e) {
+            Util.PrintAndExit("Binary file path is invalid:\n" + e);
+        } catch (PathTooLongException) {
+            Util.PrintAndExit("Path " + path + " is too long.");
+        } catch (SecurityException) {
+            Util.PrintAndExit("Internal error (SecurityException): " + path);
+        } catch (UnauthorizedAccessException) {
+            Util.PrintAndExit("Invalid permissions to open " + path);
+        } catch (NotSupportedException e) {
+            Util.PrintAndExit("Binary file path is invalid:\n" + e);
+        }
+
+        return -1;  // for the compiler
+    }
+    
+    //=============================================================================
     //             PROCESSING INSTRUCTIONS
     //=============================================================================
     
     /// <summary>
     /// Processes an instruction on our in-memory copy of the SST39SF's sectors (sectorIndexToData).
-    /// An instruction is of the form 'program [FILE] to the SST39SF, starting at startingAddress [ADDRESS]'.
+    /// An instruction is of the form 'program [FILE] to the SST39SF, starting at address [ADDRESS]'.
     /// </summary>
     /// <param name="sectorIndexToData">A map from sector index to sector data of all sectors that have been
     /// affected by instructions so far. This is our in-memory copy of the SST39SF's sectors, and where we
@@ -116,7 +210,7 @@ internal static class ArbitraryProgramming {
     /// <param name="address">The startingAddress of the instruction.</param>
     /// <param name="path">The path of the file in the instruction.</param>
     private static void ProcessInstruction(Dictionary<int, byte[]> sectorIndexToData, int address, string path) {
-        Util.WriteLineVerbose("Received instruction to write file " + path + " starting at startingAddress 0x" + address.ToString("X") + ".");
+        Util.WriteLineVerbose("Received instruction to write file " + path + " starting at address 0x" + address.ToString("X") + ".");
 
         using (FileStream binaryFile = Util.OpenBinaryFile(path)) {
             if (binaryFile.Length == 0) Util.PrintAndExit("Error: file " + path + " is empty.");

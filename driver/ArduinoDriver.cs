@@ -2,7 +2,6 @@
  * Main class. Drives the Arduino to perform functionality based on command line arguments.
  *
  * C# compiler command for compiling: csc /t:exe /out:ArduinoDriver.exe <all .cs files>
- * Powershell command for compiling and running: (Add-Type -Path "ArduinoDriver.cs" -PassThru)::Main(@("COM3")) - not sure if this still works with multiple source files
  * 
  * Copyright (C) 2023 Alexander Gillon
  * 
@@ -55,7 +54,8 @@ internal static class ArduinoDriver {
         string serialPortName;
         OperationMode mode;
         string path;
-        ParseArgs(args, out serialPortName, out mode, out path);
+        bool overlapsEnabled;
+        ParseArgs(args, out serialPortName, out mode, out path, out overlapsEnabled);
         Arduino arduino = ConnectToArduino(serialPortName);
 
         switch (mode) {
@@ -63,7 +63,7 @@ internal static class ArduinoDriver {
                 WriteBinary(arduino, path);
                 break;
             case OperationMode.ARBITRARY_WRITE:
-                ArbitraryProgramming.ExecuteInstructions(arduino, path);
+                ArbitraryProgramming.ExecuteInstructions(arduino, path, overlapsEnabled);
                 break;
             case OperationMode.ERASE_CHIP:
                 ChipErase.EraseChip(arduino);
@@ -88,9 +88,10 @@ internal static class ArduinoDriver {
     /// <param name="args">The command line arguments to parse.</param>
     /// <param name="serialPortName">[out] The parsed name of the serial port.</param>
     /// <param name="mode">[out] The parsed operation mode.</param>
-    /// <param name="path">[out] A parsed path, that has been verified to exist (only present for the -w option,
+    /// <param name="path">[out] A parsed path, that has been verified to exist (only present for the -w/-a options,
     /// null otherwise).</param>
-    private static void ParseArgs(string[] args, out string serialPortName, out OperationMode mode, out string path) {
+    /// <param name="overlapsEnabled">[out] If the mode is ARBITRARY_WRITE, whether the user passed the optional -o flag. Otherwise, false.</param>
+    private static void ParseArgs(string[] args, out string serialPortName, out OperationMode mode, out string path, out bool overlapsEnabled) {
         if (args.Length <= 0) {
             PrintHelpAndExit("No serial port supplied.");
         } else if (args.Length <= 1) {
@@ -100,6 +101,8 @@ internal static class ArduinoDriver {
         serialPortName = args[0];
         mode = ParseMode(args[1]);
 
+        path = null;
+        overlapsEnabled = false;
         switch (mode) {
             case OperationMode.WRITE_BINARY:
                 if (args.Length <= 2) PrintHelpAndExit("-w supplied, but no path to binary file supplied.");
@@ -108,13 +111,12 @@ internal static class ArduinoDriver {
             case OperationMode.ARBITRARY_WRITE:
                 if (args.Length <= 2) PrintHelpAndExit("-a supplied, but no path to instruction file supplied.");
                 path = Path.GetFullPath(args[2]);
+                overlapsEnabled = args.Length >= 4 && args[3].Equals("-o");
                 break;
             case OperationMode.ERASE_CHIP:
-                path = null;
                 break;
             default:
                 Util.PrintAndExit("Internal error: unrecognized OperationMode during switch/case.");
-                path = null;  // for the compiler
                 break;
         }
     }
@@ -137,8 +139,6 @@ internal static class ArduinoDriver {
                 return OperationMode.WRITE_BINARY;  // for the compiler: can't get here
         }
     }
-
-    
     
     //=============================================================================
     //             INITIALIZATION METHODS
@@ -319,11 +319,12 @@ internal static class ArduinoDriver {
             "        <SERIALPORT>        Name of the serial port to connect to the Arduino on (e.g. \"COM3\")\n" +
             "        <BIN>               Path to the binary file to write to the SST39SF\n" +
             "\n" +
-            "    ArduinoDriver.exe <SERIALPORT> -a <INSTRUCTION FILE>        Writes data to arbitrary positions on the\n" +
+            "    ArduinoDriver.exe <SERIALPORT> -a <INSTRUCTION FILE> [-o]   Writes data to arbitrary positions on the\n" +
             "                                                                SST39SF. See ArbitraryProgramming.cs for file\n"+
             "                                                                format.\n" +
             "        <SERIALPORT>        Name of the serial port to connect to the Arduino on (e.g. \"COM3\")\n" +
             "        <INSTRUCTION FILE>  Path to the instruction file: see ArbitraryProgramming.cs for file format\n" +
+            "        -o                  Enable overlaps. By default, if instructions overlap, the program aborts. Passing this flag disables checking for overlaps.\n" +
             "\n" +
             "    ArduinoDriver.exe <SERIALPORT> -e                           Erases the SST39SF\n" +
             "        <SERIALPORT>        Name of the serial port to connect to the Arduino on (e.g. \"COM3\")\n";
