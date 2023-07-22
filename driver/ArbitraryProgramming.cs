@@ -21,7 +21,8 @@
  *
  *   NOTE: overlapping instructions (i.e. instructions that would cause part of one binary file to be overwritten by
  *   part of another) are forbidden by default. Supply the additional -o command line flag to allow overlapping
- *   instructions.
+ *   instructions. If instructions overlap, they are applied in the order they are encountered (i.e. later instructions
+ *   overwrite earlier ones).
  *
  *   Take caution when writing overlapping instruction files.
  *
@@ -155,9 +156,9 @@ internal static class ArbitraryProgramming {
             FileInterval thisInterval = fileIntervals[i];
             FileInterval nextInterval = fileIntervals[i + 1];
             if (nextInterval.StartingAddress < thisInterval.EndingAddress) {
-                string message = String.Format("{0}: file {1} of length {2}, which starts at address {3} and " +
-                                               "ends at address {4} overlaps with file {5} of length {6}, which " +
-                                               "starts at address {7} and ends at address {8}.",
+                string message = String.Format("{0}: file {1} of length 0x{2:X}, which starts at address 0x{3:X} and " +
+                                               "ends at address 0x{4:X} overlaps with file {5} of length 0x{6:X}, which " +
+                                               "starts at address 0x{7:X} and ends at address 0x{8:X}.",
                     overlapsEnabled ? "Warning" : "Error", thisInterval.FilePath, 
                     thisInterval.EndingAddress - thisInterval.StartingAddress, thisInterval.StartingAddress, 
                     thisInterval.EndingAddress, nextInterval.FilePath, 
@@ -217,7 +218,7 @@ internal static class ArbitraryProgramming {
 
             ProcessFirstSector(sectorIndexToData, address, binaryFile);
             
-            int sector = address % Arduino.SST_SECTOR_SIZE + 1;
+            int sector = address / Arduino.SST_SECTOR_SIZE + 1;
             ProcessRemainingSectors(sectorIndexToData, sector, binaryFile);
         }
     }
