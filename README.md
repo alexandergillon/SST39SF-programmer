@@ -12,8 +12,6 @@ This programmer supports the following three modes of operation:
 2. Write binary: writes a binary file to the chip, starting at address `0x0`.
 3. Arbitrary programming: write an arbitrary number of binary files to arbitrary memory locations on the chip. More on this later.
 
-**Note: I only have a Windows computer, and as a result have only tested this on Windows. I don't know how to compile C# programs on other operating systems, but I'm sure it's possible.**
-
 ## Getting Started
 
 ### Dependencies
@@ -21,6 +19,7 @@ This programmer supports the following three modes of operation:
 - Arduino code is written in C++. This should be compatible with whichever way you usually use to upload a sketch to your Arduino.
 - The command-line program which drives the Arduino is written in C#. This requires a C# compiler. The best option for Windows is `csc.exe`, which is distributed by Microsoft as part of the .NET framework. There are guides online showing how to download the .NET framework and find `csc.exe` within it.
 
+**Note: I only have a Windows computer, and as a result have only tested this on Windows. I don't know how to compile C# programs on other operating systems, but I'm sure it's possible.**
 
 ### Installing
 
